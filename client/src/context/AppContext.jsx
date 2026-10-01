@@ -1,9 +1,9 @@
-import { createContext } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 import api from "../api/api.js";
 
 const AppContext = createContext(undefined);
 
-export function AppProvider({ children }) {
+export function AppContextProvider({ children }) {
 
     //Auth states
     const [user, setUser] = useState(null);
