@@ -4,7 +4,6 @@ export async function exportProjectZip(project) {
     if (!project) return;
     try {
         const JSZip = (await import("jszip")).default;
-        const { saveAs } = await import("file-saver");
 
         const zip = new JSZip();
 
@@ -110,7 +109,12 @@ createRoot(document.getElementById('root')).render(<App />);
 
         const blob = await zip.generateAsync({ type: "blob" });
         const fileName = `${(project.name || "website").toLowerCase().replace(/[^a-z0-9]+/g, "-")}.zip`;
-        saveAs(blob, fileName);
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = fileName;
+        link.click();
+        URL.revokeObjectURL(url);
     } catch (error) {
         console.error("Export project error:", error);
     }
