@@ -14,10 +14,12 @@ import {
   X,
   FileText,
   Image as ImageIcon,
+  Settings,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../api/api';
 import { useAppContext } from '../context/AppContext';
+import ApiKeyModal from '../components/ApiKeyModal';
 
 const SUGGESTIONS = [
   'Build a luxury restaurant website with a menu, table reservation, location, chef section and customer reviews',
@@ -35,6 +37,7 @@ export default function HomePage() {
   const [loadingProjects, setLoadingProjects] = useState(true);
   const [isListening, setIsListening] = useState(false);
   const [attachedFile, setAttachedFile] = useState(null);
+  const [showConfigModal, setShowConfigModal] = useState(false);
 
   const fileInputRef = useRef(null);
   const { user, logout } = useAppContext();
@@ -197,6 +200,15 @@ export default function HomePage() {
               {user.name || user.email}
             </span>
           )}
+          <button
+            type="button"
+            onClick={() => setShowConfigModal(true)}
+            title="OpenRouter AI Settings"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+          >
+            <Settings size={13} />
+            <span>AI Settings</span>
+          </button>
           <button type="button" onClick={handleSignOut} title="Sign Out">
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
               <LogOut size={13} />
@@ -471,6 +483,12 @@ export default function HomePage() {
 
       {/* Bottom Glow */}
       <div className="forge-glow" />
+
+      {/* OpenRouter Settings Modal */}
+      <ApiKeyModal
+        isOpen={showConfigModal}
+        onClose={() => setShowConfigModal(false)}
+      />
     </div>
   );
 }

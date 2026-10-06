@@ -67,6 +67,7 @@ async function consumeEventStream(url, body, onEvent, signal) {
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
+  let terminalReceived = false;
 
   while (true) {
     const { done, value } = await reader.read();
@@ -82,6 +83,9 @@ async function consumeEventStream(url, body, onEvent, signal) {
         if (jsonStr) {
           try {
             const parsed = JSON.parse(jsonStr);
+            if (parsed.type === 'done' || parsed.type === 'error') {
+              terminalReceived = true;
+            }
             onEvent(parsed);
           } catch (e) {
             console.warn('Could not parse SSE event:', e);
@@ -89,6 +93,10 @@ async function consumeEventStream(url, body, onEvent, signal) {
         }
       }
     }
+  }
+
+  if (!terminalReceived) {
+    throw new Error('Connection to AI agent closed unexpectedly. Click Retry or Instant Build.');
   }
 }
 
@@ -125,11 +133,11 @@ export default function BuilderPage() {
   const [deviceView, setDeviceView] = useState('desktop');
   const [previewKey, setPreviewKey] = useState(0);
 
-  // Gemini Agent Dev Log & Error state
+  // OpenRouter Agent Dev Log & Error state
   const [devLogs, setDevLogs] = useState([]);
   const [generationError, setGenerationError] = useState(null);
   const [showApiKeyModal, setShowApiKeyModal] = useState(false);
-  const [agentModel, setAgentModel] = useState('gemini-2.5-flash');
+  const [agentModel, setAgentModel] = useState('llama3:latest');
 
   // Live Agent Activity Stream state
   const [liveActivities, setLiveActivities] = useState([]);
@@ -268,7 +276,7 @@ export default function BuilderPage() {
             setIsGenerating(false);
             setGenerationError(event.error);
             toast.error(event.error);
-            if (event.error?.includes('GEMINI_API_KEY')) {
+            if (event.error?.includes('OpenRouter') || event.error?.includes('API key')) {
               setShowApiKeyModal(true);
             }
           } else if (event.type === 'done' && event.project) {
@@ -278,12 +286,13 @@ export default function BuilderPage() {
             setCurrentActionNotice('Ready');
 
             if (event.project.messages) {
-              const assistantLogs = event.project.messages.flatMap((m) => m.devLogs || []);
+              const assistantLogs = event.project.messages.flatMap((m) => m?.devLogs || []);
               if (assistantLogs.length > 0) {
                 setDevLogs((prev) => {
-                  const existingTimestamps = new Set(prev.map((p) => p.timestamp));
-                  const newLogs = assistantLogs.filter((l) => !existingTimestamps.has(l.timestamp));
-                  return [...prev, ...newLogs];
+                  const safePrev = Array.isArray(prev) ? prev : [];
+                  const existingTimestamps = new Set(safePrev.map((p) => p?.timestamp).filter(Boolean));
+                  const newLogs = assistantLogs.filter((l) => l && (!l.timestamp || !existingTimestamps.has(l.timestamp)));
+                  return [...safePrev, ...newLogs];
                 });
               }
             }
@@ -297,8 +306,9 @@ export default function BuilderPage() {
             setActiveFile(bestFile);
             setEditedCode(event.project.files[bestFile] || '');
 
+            setPreviewKey((k) => k + 1);
             window.history.replaceState(null, '', `/builder/${event.project._id || event.project.id}`);
-            toast.success('Website built successfully with Gemini!');
+            toast.success('Website built successfully!');
           }
         },
         abortCtrl.signal
@@ -307,7 +317,7 @@ export default function BuilderPage() {
         if (err.name === 'AbortError') return;
         console.error('Project generation error:', err);
         setIsGenerating(false);
-        const errMsg = err.message || 'Gemini generation failed.';
+        const errMsg = err.message || 'Generation failed.';
         setGenerationError(errMsg);
         toast.error(errMsg);
       });
@@ -334,6 +344,7 @@ export default function BuilderPage() {
           setActiveFile(bestFile);
           setEditedCode(res.data.files[bestFile] || '');
           setIsGenerating(false);
+          setPreviewKey((k) => k + 1);
 
           const assistantLogs = res.data.messages?.flatMap((m) => m.devLogs || []) || [];
           if (assistantLogs.length > 0) {
@@ -570,6 +581,76 @@ export default function BuilderPage() {
     }, 600);
   };
 
+  // Instant build with senior architect
+  const handleInstantBuild = async () => {
+    const promptToUse = initialPrompt || project?.description || composerMessage || 'Create a modern web application';
+    setIsGenerating(true);
+    setGenerationError(null);
+    setCurrentActionNotice('Generating complete application with Senior Architect...');
+    try {
+      const res = await api.post('/api/projects?stream=false', {
+        prompt: promptToUse,
+        engine: 'architect',
+      });
+      setProject(res.data);
+      setIsGenerating(false);
+      setGenerationError(null);
+      setCurrentActionNotice('Ready');
+      const fileKeys = Object.keys(res.data.files || {});
+      const bestFile = fileKeys.find((f) => f.includes('App')) || fileKeys.find((f) => f.endsWith('index.html')) || fileKeys[0] || '';
+      setActiveFile(bestFile);
+      setEditedCode(res.data.files[bestFile] || '');
+      setPreviewKey((k) => k + 1);
+      if (res.data.id) {
+        window.history.replaceState(null, '', `/builder/${res.data._id || res.data.id}`);
+      }
+      toast.success('Website built successfully!');
+    } catch (err) {
+      setIsGenerating(false);
+      const msg = err.response?.data?.error || err.message || 'Build failed';
+      setGenerationError(msg);
+      toast.error(msg);
+    }
+  };
+
+  const handleRetryAgent = () => {
+    const promptToUse = initialPrompt || project?.description || composerMessage;
+    if (!promptToUse) return;
+    setIsGenerating(true);
+    setGenerationError(null);
+    setCurrentActionNotice('Generating application with AI Agent...');
+    setLiveActivities([]);
+
+    consumeEventStream(
+      '/api/projects?stream=true',
+      { prompt: promptToUse },
+      (event) => {
+        if (event.type === 'activity_started') {
+          setCurrentActionNotice(event.message);
+        } else if (event.type === 'file_created' || event.type === 'file_updated') {
+          setProject((prev) => prev ? { ...prev, files: { ...prev.files, [event.path]: event.content } } : prev);
+          setActiveFile(event.path);
+        } else if (event.type === 'done' && event.project) {
+          setProject(event.project);
+          setIsGenerating(false);
+          setGenerationError(null);
+          setCurrentActionNotice('Ready');
+          setPreviewKey((k) => k + 1);
+          toast.success('Website built successfully!');
+        } else if (event.type === 'error') {
+          setIsGenerating(false);
+          setGenerationError(event.error);
+          toast.error(event.error);
+        }
+      }
+    ).catch((err) => {
+      setIsGenerating(false);
+      const errMsg = err.message || 'Generation failed.';
+      setGenerationError(errMsg);
+      toast.error(errMsg);
+    });
+  };
+
   // Generate live iframe HTML
   const previewHtml = useMemo(() => {
     return generatePreviewHtml(project?.files || {});
@@ -730,6 +811,7 @@ export default function BuilderPage() {
             <Download size={14} />
             <span>Export</span>
           </button>
+
 
           <button
             onClick={() => {
@@ -1556,7 +1638,7 @@ export default function BuilderPage() {
               padding: deviceView === 'desktop' ? '0' : '16px',
             }}
           >
-            {isGenerating && (!project?.files || Object.keys(project.files).length === 0) ? (
+            {(isGenerating || generationError) && (!project?.files || Object.keys(project.files).length === 0) ? (
               <div
                 style={{
                   width: deviceView === 'desktop' ? '100%' : deviceView === 'tablet' ? '768px' : '375px',
@@ -1571,30 +1653,123 @@ export default function BuilderPage() {
                   boxSizing: 'border-box',
                 }}
               >
-                <div
-                  style={{
-                    width: '56px',
-                    height: '56px',
-                    borderRadius: '16px',
-                    backgroundColor: '#eef2ff',
-                    border: '1px solid #e0e7ff',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: '#4f46e5',
-                    marginBottom: '18px',
-                  }}
-                >
-                  <Sparkles size={28} className="animate-spin" style={{ animationDuration: '6s' }} />
-                </div>
+                {generationError ? (
+                  <>
+                    <div
+                      style={{
+                        width: '56px',
+                        height: '56px',
+                        borderRadius: '16px',
+                        backgroundColor: '#fef2f2',
+                        border: '1px solid #fee2e2',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: '#dc2626',
+                        marginBottom: '18px',
+                      }}
+                    >
+                      <AlertCircle size={28} />
+                    </div>
 
-                <h2 style={{ fontSize: '20px', fontWeight: 800, color: '#09090b', margin: '0 0 6px' }}>
-                  AI is building your application
-                </h2>
+                    <h2 style={{ fontSize: '20px', fontWeight: 800, color: '#09090b', margin: '0 0 6px' }}>
+                      Generation Stalled or Encountered Notice
+                    </h2>
 
-                <p style={{ fontSize: '13px', color: '#71717a', margin: '0 0 20px', maxWidth: '440px', textAlign: 'center' }}>
-                  {currentActionNotice}
-                </p>
+                    <p style={{ fontSize: '12.5px', color: '#b91c1c', margin: '0 0 20px', maxWidth: '460px', textAlign: 'center', lineHeight: 1.5 }}>
+                      {generationError}
+                    </p>
+
+                    <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', justifyContent: 'center' }}>
+                      <button
+                        onClick={handleInstantBuild}
+                        style={{
+                          padding: '10px 18px',
+                          borderRadius: '8px',
+                          backgroundColor: '#09090b',
+                          color: '#ffffff',
+                          border: 'none',
+                          fontSize: '13px',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                        }}
+                      >
+                        <Sparkles size={14} color="#f59e0b" />
+                        <span>Instant Build (Senior Architect)</span>
+                      </button>
+
+                      <button
+                        onClick={handleRetryAgent}
+                        style={{
+                          padding: '10px 16px',
+                          borderRadius: '8px',
+                          backgroundColor: '#f4f4f5',
+                          color: '#18181b',
+                          border: '1px solid #e4e4e7',
+                          fontSize: '13px',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                        }}
+                      >
+                        <RotateCw size={14} />
+                        <span>Retry Build</span>
+                      </button>
+
+                      <button
+                        onClick={() => setShowApiKeyModal(true)}
+                        style={{
+                          padding: '10px 16px',
+                          borderRadius: '8px',
+                          backgroundColor: '#ffffff',
+                          color: '#3f3f46',
+                          border: '1px solid #e4e4e7',
+                          fontSize: '13px',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                        }}
+                      >
+                        <Cpu size={14} color="#16a34a" />
+                        <span>AI Settings</span>
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div
+                      style={{
+                        width: '56px',
+                        height: '56px',
+                        borderRadius: '16px',
+                        backgroundColor: '#eef2ff',
+                        border: '1px solid #e0e7ff',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: '#4f46e5',
+                        marginBottom: '18px',
+                      }}
+                    >
+                      <Sparkles size={28} className="animate-spin" style={{ animationDuration: '6s' }} />
+                    </div>
+
+                    <h2 style={{ fontSize: '20px', fontWeight: 800, color: '#09090b', margin: '0 0 6px' }}>
+                      AI is building your application
+                    </h2>
+
+                    <p style={{ fontSize: '13px', color: '#71717a', margin: '0', maxWidth: '440px', textAlign: 'center' }}>
+                      {currentActionNotice}
+                    </p>
+                  </>
+                )}
               </div>
             ) : (
               <iframe
@@ -1785,6 +1960,15 @@ export default function BuilderPage() {
           </div>
         </div>
       )}
+
+      {/* OpenRouter Settings Modal */}
+      <ApiKeyModal
+        isOpen={showApiKeyModal}
+        onClose={() => setShowApiKeyModal(false)}
+        onKeyConfigured={(cfg) => {
+          if (cfg?.model) setAgentModel(cfg.model);
+        }}
+      />
     </main>
   );
 }

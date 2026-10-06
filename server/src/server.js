@@ -5,7 +5,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createServer } from 'node:http';
 import { buildWebsite } from './agent.js';
-import { runGeminiAgent } from './geminiAgent.js';
+import { runOpenRouterAgent, checkOpenRouterConnection } from './openrouterAgent.js';
 
 const scrypt = promisify(scryptCallback);
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -361,16 +361,51 @@ const requestHandler = async (req, res) => {
       // Support Google Identity Services JWT token
       if (body.credential) {
         try {
-          const parts = body.credential.split('.');
-          if (parts.length >= 2) {
-            const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8'));
-            email = String(payload.email || '').trim().toLowerCase();
-            name = String(payload.name || payload.given_name || email.split('@')[0]).trim();
-            avatar = payload.picture || '';
-            googleId = payload.sub || '';
+          // Attempt verifying with Google tokeninfo endpoint
+          const gVerify = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(body.credential)}`).catch(() => null);
+          if (gVerify && gVerify.ok) {
+            const gData = await gVerify.json();
+            email = String(gData.email || '').trim().toLowerCase();
+            name = String(gData.name || gData.given_name || email.split('@')[0]).trim();
+            avatar = gData.picture || '';
+            googleId = gData.sub || '';
           }
         } catch (err) {
-          console.error('[Google Auth] Error decoding credential token:', err);
+          console.warn('[Google Auth] Notice checking tokeninfo:', err.message);
+        }
+
+        // Fallback JWT payload decode if offline or tokeninfo unavailable
+        if (!email) {
+          try {
+            const parts = body.credential.split('.');
+            if (parts.length >= 2) {
+              const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8'));
+              email = String(payload.email || '').trim().toLowerCase();
+              name = String(payload.name || payload.given_name || email.split('@')[0]).trim();
+              avatar = payload.picture || '';
+              googleId = payload.sub || '';
+            }
+          } catch (err) {
+            console.error('[Google Auth] Error decoding credential token:', err);
+          }
+        }
+      }
+
+      // Support OAuth2 Access Token
+      if (!email && body.accessToken) {
+        try {
+          const gRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+            headers: { Authorization: `Bearer ${body.accessToken}` },
+          }).catch(() => null);
+          if (gRes && gRes.ok) {
+            const gData = await gRes.json();
+            email = String(gData.email || '').trim().toLowerCase();
+            name = String(gData.name || gData.given_name || email.split('@')[0]).trim();
+            avatar = gData.picture || '';
+            googleId = gData.sub || '';
+          }
+        } catch (err) {
+          console.error('[Google Auth] Error fetching userinfo via accessToken:', err);
         }
       }
 
@@ -489,58 +524,90 @@ const requestHandler = async (req, res) => {
       return jsonResponse(res, 200, projectPayload(project), securityHeaders);
     }
 
-    // 7. Agent Status and Configuration (No session required so user can check status and configure in dev)
+    // 7. Agent Status and Configuration (OpenRouter AI)
     if (req.method === 'GET' && path === '/api/agent/status') {
+      const apiKey = (process.env.OPENROUTER_API_KEY || '').trim();
+      const model = (process.env.OPENROUTER_MODEL || 'nvidia/nemotron-3.5-lightning:free').trim();
+      const conn = await checkOpenRouterConnection(apiKey);
+
       return jsonResponse(
         res,
         200,
         {
-          configured: Boolean(process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY.trim()),
-          model: process.env.GEMINI_MODEL || 'gemini-2.5-flash',
+          provider: 'openrouter',
+          connected: conn.connected,
+          configured: !!apiKey,
+          apiKey: apiKey ? `••••••••${apiKey.slice(-6)}` : null,
+          model,
+          keyInfo: conn.keyInfo || null,
+          error: conn.error || null,
         },
         securityHeaders
       );
     }
 
     if (req.method === 'POST' && path === '/api/agent/config') {
-      const { apiKey, model } = await readRequestBody(req);
-      if (apiKey !== undefined) {
-        process.env.GEMINI_API_KEY = String(apiKey).trim();
+      const { apiKey: newApiKey, model: newModel } = await readRequestBody(req);
+
+      if (newApiKey !== undefined && String(newApiKey).trim()) {
+        process.env.OPENROUTER_API_KEY = String(newApiKey).trim();
       }
-      if (model) {
-        process.env.GEMINI_MODEL = String(model).trim();
+      if (newModel !== undefined && String(newModel).trim()) {
+        process.env.OPENROUTER_MODEL = String(newModel).trim();
       }
+
       try {
         const envPath = join(__dirname, '../.env');
         let envContent = await readFile(envPath, 'utf8');
-        if (envContent.includes('GEMINI_API_KEY=')) {
-          envContent = envContent.replace(
-            /GEMINI_API_KEY=".*?"|GEMINI_API_KEY=.*$/m,
-            `GEMINI_API_KEY="${process.env.GEMINI_API_KEY}"`
-          );
-        } else {
-          envContent += `\nGEMINI_API_KEY="${process.env.GEMINI_API_KEY}"`;
-        }
-        if (model) {
-          if (envContent.includes('GEMINI_MODEL=')) {
+
+        if (process.env.OPENROUTER_API_KEY) {
+          if (envContent.includes('OPENROUTER_API_KEY=')) {
             envContent = envContent.replace(
-              /GEMINI_MODEL=".*?"|GEMINI_MODEL=.*$/m,
-              `GEMINI_MODEL="${process.env.GEMINI_MODEL}"`
+              /OPENROUTER_API_KEY=".*?"|OPENROUTER_API_KEY=.*$/m,
+              `OPENROUTER_API_KEY="${process.env.OPENROUTER_API_KEY}"`
             );
           } else {
-            envContent += `\nGEMINI_MODEL="${process.env.GEMINI_MODEL}"`;
+            envContent += `\nOPENROUTER_API_KEY="${process.env.OPENROUTER_API_KEY}"`;
           }
         }
+
+        if (process.env.OPENROUTER_MODEL) {
+          if (envContent.includes('OPENROUTER_MODEL=')) {
+            envContent = envContent.replace(
+              /OPENROUTER_MODEL=".*?"|OPENROUTER_MODEL=.*$/m,
+              `OPENROUTER_MODEL="${process.env.OPENROUTER_MODEL}"`
+            );
+          } else {
+            envContent += `\nOPENROUTER_MODEL="${process.env.OPENROUTER_MODEL}"`;
+          }
+        }
+
+        // Clean up legacy keys
+        envContent = envContent
+          .replace(/OLLAMA_BASE_URL=".*?"\r?\n?/g, '')
+          .replace(/OLLAMA_MODEL=".*?"\r?\n?/g, '')
+          .replace(/GEMINI_API_KEY=".*?"\r?\n?/g, '')
+          .replace(/GEMINI_MODEL=".*?"\r?\n?/g, '');
+
         await writeFile(envPath, envContent, 'utf8');
       } catch (err) {
         console.warn('[Server] Could not persist to .env:', err.message);
       }
+
+      const activeKey = process.env.OPENROUTER_API_KEY || '';
+      const activeModel = process.env.OPENROUTER_MODEL || 'nvidia/nemotron-3.5-lightning:free';
+      const conn = await checkOpenRouterConnection(activeKey);
+
       return jsonResponse(
         res,
         200,
         {
-          configured: Boolean(process.env.GEMINI_API_KEY),
-          model: process.env.GEMINI_MODEL || 'gemini-2.5-flash',
+          provider: 'openrouter',
+          connected: conn.connected,
+          configured: !!activeKey,
+          model: activeModel,
+          keyInfo: conn.keyInfo || null,
+          error: conn.error || null,
         },
         securityHeaders
       );
@@ -560,16 +627,17 @@ const requestHandler = async (req, res) => {
       return jsonResponse(res, 200, userProjects, securityHeaders);
     }
 
-    // 9. Projects: Create new project via Gemini Agent
+    // 9. Projects: Create new project via OpenRouter Agent or Architect Engine
     if (req.method === 'POST' && path === '/api/projects') {
-      const { prompt } = await readRequestBody(req);
+      const { prompt, engine } = await readRequestBody(req);
       const cleanPrompt = sanitizePrompt(prompt);
 
       if (cleanPrompt.length < 3) {
         return jsonResponse(res, 400, { error: 'Please enter a description for your website.' }, securityHeaders);
       }
 
-      console.log(`[Server] Generating website for prompt via Gemini Agent: "${cleanPrompt}"`);
+      const useArchitect = engine === 'architect';
+      console.log(`[Server] Generating website via ${useArchitect ? 'Architect' : 'OpenRouter'}: "${cleanPrompt}"`);
       const isStream = url.searchParams.get('stream') === 'true' || req.headers.accept?.includes('text/event-stream');
 
       if (isStream) {
@@ -585,7 +653,8 @@ const requestHandler = async (req, res) => {
         };
 
         try {
-          const agentResult = await runGeminiAgent({
+          const builderFn = useArchitect ? buildWebsite : runOpenRouterAgent;
+          const agentResult = await builderFn({
             request: cleanPrompt,
             onEvent: sendEvent,
           });
@@ -621,10 +690,10 @@ const requestHandler = async (req, res) => {
           sendEvent({ type: 'done', project: projectPayload(project) });
           return res.end();
         } catch (error) {
-          console.error('[Server Error in Gemini generation]', error.message);
+          console.error('[Server Error in OpenRouter generation]', error.message);
           sendEvent({
             type: 'error',
-            error: error.message || 'Gemini Agent failed to generate website.',
+            error: error.message || 'AI Agent failed to generate website.',
           });
           return res.end();
         }
@@ -632,7 +701,8 @@ const requestHandler = async (req, res) => {
 
       // Non-streaming fallback
       try {
-        const agentResult = await runGeminiAgent({ request: cleanPrompt });
+        const builderFn = useArchitect ? buildWebsite : runOpenRouterAgent;
+        const agentResult = await builderFn({ request: cleanPrompt });
         const now = new Date().toISOString();
         const projectName = cleanPrompt.length > 35 ? `${cleanPrompt.slice(0, 32)}...` : cleanPrompt;
 
@@ -662,7 +732,7 @@ const requestHandler = async (req, res) => {
         await saveDatabase(db);
         return jsonResponse(res, 201, projectPayload(project), securityHeaders);
       } catch (error) {
-        console.error('[Server Error in Gemini generation]', error.message);
+        console.error('[Server Error in OpenRouter generation]', error.message);
         return jsonResponse(res, 500, { error: error.message }, securityHeaders);
       }
     }
@@ -712,7 +782,7 @@ const requestHandler = async (req, res) => {
       return jsonResponse(res, 200, projectPayload(project), securityHeaders);
     }
 
-    // Iterative Chat: update website via Gemini Agent conversation
+    // Iterative Chat: update website via OpenRouter Agent conversation
     if (req.method === 'POST' && action === 'chat') {
       const { prompt } = await readRequestBody(req);
       const cleanPrompt = sanitizePrompt(prompt);
@@ -721,7 +791,7 @@ const requestHandler = async (req, res) => {
         return jsonResponse(res, 400, { error: 'Please enter a change request.' }, securityHeaders);
       }
 
-      console.log(`[Server] Updating project ${projectId} via Gemini Agent with prompt: "${cleanPrompt}"`);
+      console.log(`[Server] Updating project ${projectId} via OpenRouter Agent with prompt: "${cleanPrompt}"`);
       const isStream = url.searchParams.get('stream') === 'true' || req.headers.accept?.includes('text/event-stream');
 
       if (isStream) {
@@ -737,7 +807,7 @@ const requestHandler = async (req, res) => {
         };
 
         try {
-          const agentResult = await runGeminiAgent({
+          const agentResult = await runOpenRouterAgent({
             request: cleanPrompt,
             existingFiles: project.files,
             previousMessages: project.messages || [],
@@ -766,10 +836,10 @@ const requestHandler = async (req, res) => {
           sendEvent({ type: 'done', project: projectPayload(project) });
           return res.end();
         } catch (error) {
-          console.error('[Server Error in Gemini revision]', error.message);
+          console.error('[Server Error in OpenRouter revision]', error.message);
           sendEvent({
             type: 'error',
-            error: error.message || 'Gemini Agent failed to update website.',
+            error: error.message || 'AI Agent failed to update website.',
           });
           return res.end();
         }
@@ -777,7 +847,7 @@ const requestHandler = async (req, res) => {
 
       // Non-streaming fallback
       try {
-        const agentResult = await runGeminiAgent({
+        const agentResult = await runOpenRouterAgent({
           request: cleanPrompt,
           existingFiles: project.files,
           previousMessages: project.messages || [],
@@ -804,7 +874,7 @@ const requestHandler = async (req, res) => {
         await saveDatabase(db);
         return jsonResponse(res, 200, projectPayload(project), securityHeaders);
       } catch (error) {
-        console.error('[Server Error in Gemini revision]', error.message);
+        console.error('[Server Error in OpenRouter revision]', error.message);
         return jsonResponse(res, 500, { error: error.message }, securityHeaders);
       }
     }

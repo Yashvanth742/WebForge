@@ -1,9 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Loader2, Plus, ShieldCheck, X } from 'lucide-react';
+import { AlertCircle, Loader2 } from 'lucide-react';
 import api from '../api/api';
 
 /**
- * Official Google 'G' Logo SVG with strict explicit pixel bounding
+ * Official Google 'G' Logo SVG
  */
 export function GoogleIcon({ size = 18, className = '' }) {
   return (
@@ -45,7 +45,7 @@ export function GoogleIcon({ size = 18, className = '' }) {
 }
 
 /**
- * GoogleAuthButton component
+ * Production-ready Google Authentication Component for WebForge
  */
 export default function GoogleAuthButton({
   mode = 'login',
@@ -54,426 +54,274 @@ export default function GoogleAuthButton({
   disabled = false,
 }) {
   const [loading, setLoading] = useState(false);
-  const [showChooserModal, setShowChooserModal] = useState(false);
-  const [customName, setCustomName] = useState('');
-  const [customEmail, setCustomEmail] = useState('');
-  const [showCustomInput, setShowCustomInput] = useState(false);
-  const googleBtnRef = useRef(null);
+  const [gisReady, setGisReady] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+  const googleBtnContainerRef = useRef(null);
+  const tokenClientRef = useRef(null);
 
-  const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+  const googleClientId =
+    import.meta.env.VITE_GOOGLE_CLIENT_ID ||
+    '663237560942-h1uvg8for1nenmpn3adtn68doriki6o8.apps.googleusercontent.com';
+
   const isLogin = mode === 'login';
 
+  // Handle authenticated payload from Google (either JWT credential or verified OAuth profile)
   const handleAuthPayload = async (payload) => {
     setLoading(true);
+    setErrorMessage('');
     try {
       const { data } = await api.post('/api/auth/google', payload);
       if (data?.user) {
-        setShowChooserModal(false);
         onSuccess(data.user);
       } else {
-        throw new Error('Authentication failed: no user returned');
+        throw new Error('Authentication failed: no user returned from server.');
       }
     } catch (err) {
-      console.error('Google Auth Error:', err);
+      console.error('[Google Auth Error]:', err);
       const msg =
         err.response?.data?.error ||
         err.message ||
-        'Failed to authenticate with Google. Please try again.';
+        'Failed to authenticate with Google. Please check your credentials and try again.';
+      setErrorMessage(msg);
       onError?.(msg);
     } finally {
       setLoading(false);
     }
   };
 
+  // Initialize Google Identity Services
   useEffect(() => {
-    if (!googleClientId || !window.google?.accounts?.id) return;
+    let checkInterval = null;
+    let cancelled = false;
 
-    try {
-      window.google.accounts.id.initialize({
-        client_id: googleClientId,
-        callback: (response) => {
-          if (response?.credential) {
-            handleAuthPayload({ credential: response.credential });
+    const setupGis = () => {
+      if (cancelled) return;
+      if (!window.google?.accounts) return;
+
+      try {
+        // 1. Initialize Google ID Token (GIS Credential API)
+        if (window.google.accounts.id && googleClientId) {
+          window.google.accounts.id.initialize({
+            client_id: googleClientId,
+            callback: (response) => {
+              if (response?.credential) {
+                handleAuthPayload({ credential: response.credential });
+              }
+            },
+            auto_select: false,
+            cancel_on_tap_outside: true,
+          });
+
+          // Render official Google button into container
+          if (googleBtnContainerRef.current) {
+            googleBtnContainerRef.current.innerHTML = '';
+            window.google.accounts.id.renderButton(googleBtnContainerRef.current, {
+              type: 'standard',
+              theme: 'outline',
+              size: 'large',
+              text: isLogin ? 'signin_with' : 'signup_with',
+              shape: 'rectangular',
+              logo_alignment: 'left',
+              width: 380,
+            });
           }
-        },
-      });
+        }
 
-      if (googleBtnRef.current) {
-        window.google.accounts.id.renderButton(googleBtnRef.current, {
-          type: 'standard',
-          theme: 'outline',
-          size: 'large',
-          text: isLogin ? 'signin_with' : 'signup_with',
-          shape: 'rectangular',
-          width: '100%',
-        });
+        // 2. Initialize Google OAuth2 Token Client (for popup fallback / custom button)
+        if (window.google.accounts.oauth2 && googleClientId) {
+          tokenClientRef.current = window.google.accounts.oauth2.initTokenClient({
+            client_id: googleClientId,
+            scope: 'email profile openid',
+            callback: async (tokenResponse) => {
+              if (tokenResponse?.error) {
+                console.error('[Google OAuth2 Error]:', tokenResponse);
+                const desc =
+                  tokenResponse.error_description ||
+                  `Google Sign-In failed (${tokenResponse.error})`;
+                setErrorMessage(desc);
+                onError?.(desc);
+                setLoading(false);
+                return;
+              }
+
+              if (tokenResponse?.access_token) {
+                try {
+                  // Fetch profile directly from Google
+                  const profileRes = await fetch(
+                    'https://www.googleapis.com/oauth2/v3/userinfo',
+                    {
+                      headers: {
+                        Authorization: `Bearer ${tokenResponse.access_token}`,
+                      },
+                    }
+                  );
+                  if (profileRes.ok) {
+                    const profile = await profileRes.json();
+                    await handleAuthPayload({
+                      email: profile.email,
+                      name: profile.name || profile.given_name,
+                      avatar: profile.picture,
+                      googleId: profile.sub,
+                      accessToken: tokenResponse.access_token,
+                    });
+                  } else {
+                    // Fallback to sending token directly
+                    await handleAuthPayload({
+                      accessToken: tokenResponse.access_token,
+                    });
+                  }
+                } catch (fetchErr) {
+                  console.error('[Google Profile Fetch Error]:', fetchErr);
+                  await handleAuthPayload({
+                    accessToken: tokenResponse.access_token,
+                  });
+                }
+              }
+            },
+            error_callback: (err) => {
+              console.error('[Google Token Client Error]:', err);
+              setLoading(false);
+              const errMsg =
+                err?.message ||
+                'Google Sign-In cancelled or blocked. Ensure http://localhost:5173 is added to Authorized JavaScript Origins in Google Cloud Console.';
+              setErrorMessage(errMsg);
+              onError?.(errMsg);
+            },
+          });
+        }
+
+        setGisReady(true);
+      } catch (err) {
+        console.warn('[GIS Setup Warning]:', err);
       }
-    } catch (e) {
-      console.warn('GIS initialization notice:', e);
+    };
+
+    if (window.google?.accounts) {
+      setupGis();
+    } else {
+      // Poll briefly until the async GIS script in index.html finishes loading
+      checkInterval = setInterval(() => {
+        if (window.google?.accounts) {
+          clearInterval(checkInterval);
+          setupGis();
+        }
+      }, 150);
     }
+
+    return () => {
+      cancelled = true;
+      if (checkInterval) clearInterval(checkInterval);
+    };
   }, [googleClientId, isLogin]);
 
-  const handleClick = () => {
+  // Click handler if using the custom button or token popup
+  const handleCustomButtonClick = () => {
     if (disabled || loading) return;
+    setErrorMessage('');
 
-    if (googleClientId && window.google?.accounts?.id) {
+    if (tokenClientRef.current) {
+      setLoading(true);
       try {
-        window.google.accounts.id.prompt((notification) => {
-          if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-            setShowChooserModal(true);
-          }
-        });
-        return;
-      } catch {
-        setShowChooserModal(true);
+        tokenClientRef.current.requestAccessToken({ prompt: 'select_account' });
+      } catch (err) {
+        setLoading(false);
+        console.error('Trigger error:', err);
+        setErrorMessage(
+          'Could not launch Google Sign-In popup. Please verify popup permissions.'
+        );
       }
+    } else if (window.google?.accounts?.id) {
+      try {
+        window.google.accounts.id.prompt();
+      } catch (e) {
+        console.warn('Google One Tap notice:', e);
+      }
+    } else {
+      setErrorMessage(
+        'Google Identity Services is still loading. Please check your internet connection or ad-blocker.'
+      );
     }
-
-    setShowChooserModal(true);
   };
 
-  const sampleGoogleAccounts = [
-    {
-      name: 'Alex Developer',
-      email: 'alex.developer@gmail.com',
-      avatar:
-        'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80',
-    },
-    {
-      name: 'Yashvanth',
-      email: 'yashvanthsavanur45@gmail.com',
-      avatar:
-        'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80',
-    },
-  ];
-
   return (
-    <>
-      <button
-        type="button"
-        onClick={handleClick}
-        disabled={disabled || loading}
+    <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+      {/* Official Google Identity Services Rendered Button Container */}
+      <div
+        ref={googleBtnContainerRef}
         style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: '12px',
           width: '100%',
-          height: '44px',
-          padding: '0 16px',
-          backgroundColor: '#ffffff',
-          color: '#3c4043',
-          border: '1px solid #dadce0',
+          minHeight: '44px',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
           borderRadius: '8px',
-          fontSize: '14px',
-          fontWeight: 600,
-          cursor: disabled || loading ? 'not-allowed' : 'pointer',
-          boxShadow: '0 1px 2px rgba(60,64,67,0.08), 0 1px 3px 1px rgba(60,64,67,0.06)',
-          transition: 'background-color 0.2s, box-shadow 0.2s, border-color 0.2s',
-          opacity: disabled ? 0.6 : 1,
-          boxSizing: 'border-box',
+          overflow: 'hidden',
         }}
-        title="Sign in with Google"
-      >
-        {loading ? (
-          <Loader2 style={{ width: 18, height: 18 }} className="animate-spin text-zinc-600" />
-        ) : (
-          <GoogleIcon size={18} />
-        )}
-        <span style={{ whiteSpace: 'nowrap' }}>
-          {loading
-            ? 'Connecting Google…'
-            : isLogin
-            ? 'Continue with Google'
-            : 'Sign up with Google'}
-        </span>
-      </button>
+      />
 
-      {/* Hidden GIS container */}
-      {googleClientId && <div ref={googleBtnRef} className="hidden" />}
-
-      {/* Google Account Selector Modal */}
-      {showChooserModal && (
-        <div
-          role="dialog"
-          aria-modal="true"
+      {/* Fallback button if GIS rendered button is loading or needs explicit custom click */}
+      {!gisReady && (
+        <button
+          type="button"
+          onClick={handleCustomButtonClick}
+          disabled={disabled || loading}
           style={{
-            position: 'fixed',
-            inset: 0,
-            zIndex: 1000,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            padding: '16px',
-            backgroundColor: 'rgba(0, 0, 0, 0.6)',
-            backdropFilter: 'blur(4px)',
+            gap: '12px',
+            width: '100%',
+            height: '44px',
+            padding: '0 16px',
+            backgroundColor: '#ffffff',
+            color: '#3c4043',
+            border: '1px solid #dadce0',
+            borderRadius: '8px',
+            fontSize: '14px',
+            fontWeight: 600,
+            cursor: disabled || loading ? 'not-allowed' : 'pointer',
+            boxShadow: '0 1px 2px rgba(60,64,67,0.08), 0 1px 3px 1px rgba(60,64,67,0.06)',
+            transition: 'background-color 0.2s, box-shadow 0.2s',
+            opacity: disabled ? 0.6 : 1,
+            boxSizing: 'border-box',
           }}
-          onClick={() => setShowChooserModal(false)}
+          title="Sign in with Google"
         >
-          <div
-            style={{
-              width: '100%',
-              maxWidth: '440px',
-              backgroundColor: '#ffffff',
-              borderRadius: '16px',
-              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
-              border: '1px solid #e5e7eb',
-              overflow: 'hidden',
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Header */}
-            <div
-              style={{
-                padding: '24px 24px 16px',
-                borderBottom: '1px solid #f3f4f6',
-                position: 'relative',
-              }}
-            >
-              <button
-                type="button"
-                onClick={() => setShowChooserModal(false)}
-                style={{
-                  position: 'absolute',
-                  top: '20px',
-                  right: '20px',
-                  background: 'none',
-                  border: 'none',
-                  padding: '4px',
-                  color: '#9ca3af',
-                  cursor: 'pointer',
-                  borderRadius: '50%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-                title="Close"
-              >
-                <X size={18} />
-              </button>
+          {loading ? (
+            <Loader2 style={{ width: 18, height: 18 }} className="animate-spin text-zinc-600" />
+          ) : (
+            <GoogleIcon size={18} />
+          )}
+          <span style={{ whiteSpace: 'nowrap' }}>
+            {loading
+              ? 'Connecting Google…'
+              : isLogin
+              ? 'Continue with Google'
+              : 'Sign up with Google'}
+          </span>
+        </button>
+      )}
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                <GoogleIcon size={22} />
-                <span style={{ fontSize: '13px', fontWeight: 600, color: '#6b7280' }}>
-                  Google Accounts
-                </span>
-              </div>
-              <h2 style={{ fontSize: '20px', fontWeight: 700, color: '#111827', margin: '0 0 4px' }}>
-                {isLogin ? 'Sign in with Google' : 'Create account with Google'}
-              </h2>
-              <p style={{ fontSize: '13px', color: '#6b7280', margin: 0 }}>
-                Choose an account to continue to <strong style={{ color: '#111827' }}>WebForge</strong>
-              </p>
-            </div>
-
-            {/* Account List */}
-            <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {sampleGoogleAccounts.map((acc, idx) => (
-                <button
-                  key={idx}
-                  type="button"
-                  disabled={loading}
-                  onClick={() =>
-                    handleAuthPayload({
-                      email: acc.email,
-                      name: acc.name,
-                      avatar: acc.avatar,
-                      googleId: `google_${acc.email.replace(/[^a-z0-9]/gi, '')}`,
-                    })
-                  }
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '14px',
-                    padding: '12px',
-                    borderRadius: '12px',
-                    border: '1px solid #e5e7eb',
-                    backgroundColor: '#ffffff',
-                    cursor: 'pointer',
-                    textAlign: 'left',
-                    transition: 'border-color 0.15s, background-color 0.15s',
-                  }}
-                  onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f9fafb')}
-                  onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#ffffff')}
-                >
-                  <img
-                    src={acc.avatar}
-                    alt={acc.name}
-                    style={{
-                      width: '40px',
-                      height: '40px',
-                      borderRadius: '50%',
-                      objectFit: 'cover',
-                      flexShrink: 0,
-                    }}
-                  />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: '14px', fontWeight: 600, color: '#111827', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {acc.name}
-                    </div>
-                    <div style={{ fontSize: '12px', color: '#6b7280', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {acc.email}
-                    </div>
-                  </div>
-                  <span style={{ fontSize: '12px', fontWeight: 600, color: '#4f46e5' }}>
-                    Select
-                  </span>
-                </button>
-              ))}
-
-              {/* Custom Google Account Section */}
-              {!showCustomInput ? (
-                <button
-                  type="button"
-                  onClick={() => setShowCustomInput(true)}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '14px',
-                    padding: '12px',
-                    borderRadius: '12px',
-                    border: '1px dashed #d1d5db',
-                    backgroundColor: '#ffffff',
-                    cursor: 'pointer',
-                    textAlign: 'left',
-                    color: '#4b5563',
-                  }}
-                  onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f9fafb')}
-                  onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#ffffff')}
-                >
-                  <div
-                    style={{
-                      width: '40px',
-                      height: '40px',
-                      borderRadius: '50%',
-                      backgroundColor: '#f3f4f6',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: '#6b7280',
-                      flexShrink: 0,
-                    }}
-                  >
-                    <Plus size={18} />
-                  </div>
-                  <span style={{ fontSize: '13px', fontWeight: 600 }}>Use another Google account</span>
-                </button>
-              ) : (
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    if (!customEmail) return;
-                    handleAuthPayload({
-                      email: customEmail.trim().toLowerCase(),
-                      name: customName.trim() || customEmail.split('@')[0],
-                      googleId: `google_${Date.now()}`,
-                    });
-                  }}
-                  style={{
-                    padding: '14px',
-                    borderRadius: '12px',
-                    border: '1px solid #c7d2fe',
-                    backgroundColor: '#f5f7ff',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '10px',
-                  }}
-                >
-                  <span style={{ fontSize: '12px', fontWeight: 600, color: '#374151' }}>
-                    Enter Google Account Info
-                  </span>
-                  <input
-                    type="text"
-                    placeholder="Full Name (e.g. John Doe)"
-                    value={customName}
-                    onChange={(e) => setCustomName(e.target.value)}
-                    style={{
-                      width: '100%',
-                      padding: '8px 12px',
-                      fontSize: '13px',
-                      backgroundColor: '#ffffff',
-                      border: '1px solid #d1d5db',
-                      borderRadius: '8px',
-                      outline: 'none',
-                      boxSizing: 'border-box',
-                    }}
-                  />
-                  <input
-                    type="email"
-                    required
-                    placeholder="name@gmail.com"
-                    value={customEmail}
-                    onChange={(e) => setCustomEmail(e.target.value)}
-                    style={{
-                      width: '100%',
-                      padding: '8px 12px',
-                      fontSize: '13px',
-                      backgroundColor: '#ffffff',
-                      border: '1px solid #d1d5db',
-                      borderRadius: '8px',
-                      outline: 'none',
-                      boxSizing: 'border-box',
-                    }}
-                  />
-                  <div style={{ display: 'flex', gap: '8px', paddingTop: '4px' }}>
-                    <button
-                      type="submit"
-                      disabled={loading}
-                      style={{
-                        flex: 1,
-                        padding: '8px 14px',
-                        backgroundColor: '#111827',
-                        color: '#ffffff',
-                        fontSize: '12px',
-                        fontWeight: 600,
-                        borderRadius: '8px',
-                        border: 'none',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      {loading ? 'Signing in…' : 'Continue with this account'}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setShowCustomInput(false)}
-                      style={{
-                        padding: '8px 12px',
-                        backgroundColor: 'transparent',
-                        color: '#6b7280',
-                        fontSize: '12px',
-                        border: 'none',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </form>
-              )}
-            </div>
-
-            {/* Footer */}
-            <div
-              style={{
-                padding: '12px 24px',
-                backgroundColor: '#f9fafb',
-                borderTop: '1px solid #f3f4f6',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                fontSize: '11px',
-                color: '#9ca3af',
-              }}
-            >
-              <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <ShieldCheck size={14} color="#10b981" />
-                <span>Protected by WebForge Secure Auth</span>
-              </span>
-              <span>OAuth 2.0</span>
-            </div>
-          </div>
+      {/* Origin or configuration warning if Google encounters an issue */}
+      {errorMessage && (
+        <div
+          style={{
+            padding: '10px 12px',
+            borderRadius: '8px',
+            backgroundColor: '#fef2f2',
+            border: '1px solid #fecaca',
+            color: '#991b1b',
+            fontSize: '12px',
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: '8px',
+            lineHeight: 1.4,
+          }}
+        >
+          <AlertCircle size={15} style={{ flexShrink: 0, marginTop: '2px' }} />
+          <div>{errorMessage}</div>
         </div>
       )}
-    </>
+    </div>
   );
 }

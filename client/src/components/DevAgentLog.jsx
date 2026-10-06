@@ -29,7 +29,7 @@ export default function DevAgentLog({
   onConfigureKey,
   onRetry,
   files = {},
-  currentModel = 'gemini-2.5-flash',
+  currentModel = 'llama3:latest',
   currentPrompt = '',
 }) {
   const [filterTool, setFilterTool] = useState('all');
@@ -180,7 +180,7 @@ export default function DevAgentLog({
                 Development Agent Log
               </h3>
               <span style={{ fontSize: '11px', color: '#71717a' }}>
-                Real-time Gemini function calls & project operations
+                Real-time OpenRouter function calls & project operations
               </span>
             </div>
           </div>
@@ -202,8 +202,8 @@ export default function DevAgentLog({
                 cursor: 'pointer',
               }}
             >
-              <KeyRound size={12} />
-              API Key Config
+              <Cpu size={12} />
+              AI Config
             </button>
           )}
         </div>
@@ -216,7 +216,7 @@ export default function DevAgentLog({
             gap: '8px',
           }}
         >
-          {/* Card 1: Gemini Model */}
+          {/* Card 1: AI Model */}
           <div
             style={{
               padding: '8px 10px',
@@ -226,7 +226,7 @@ export default function DevAgentLog({
             }}
           >
             <span style={{ fontSize: '10px', color: '#71717a', fontWeight: 700, textTransform: 'uppercase' }}>
-              Gemini Model
+              OpenRouter Model
             </span>
             <div style={{ fontSize: '12px', fontWeight: 700, color: '#09090b', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '6px' }}>
               <Cpu size={12} color="#4f46e5" />
@@ -334,7 +334,7 @@ export default function DevAgentLog({
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#b91c1c', fontWeight: 700, fontSize: '12px' }}>
               <AlertCircle size={14} />
-              <span>Gemini Agent Error</span>
+              <span>AI Agent Error</span>
             </div>
             <p style={{ margin: 0, fontSize: '11.5px', color: '#991b1b', fontFamily: 'monospace', whiteSpace: 'pre-wrap' }}>
               {stats.lastError}
@@ -370,7 +370,7 @@ export default function DevAgentLog({
                       cursor: 'pointer',
                     }}
                   >
-                    Set API Key
+                    Configure OpenRouter
                   </button>
                 )}
               </div>
@@ -431,7 +431,7 @@ export default function DevAgentLog({
           >
             <p style={{ margin: '0 0 4px', fontWeight: 600, color: '#71717a' }}>No developer logs recorded yet.</p>
             <p style={{ margin: 0, fontSize: '11px' }}>
-              Detailed Gemini function calls, tool arguments, and results will appear live during generation.
+              Detailed function calls, tool arguments, and results will appear live during generation.
             </p>
           </div>
         ) : (

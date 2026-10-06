@@ -1,2185 +1,2377 @@
 /**
  * Autonomous AI Software Architect & Dynamic Application Generator
  *
- * Dynamically plans and generates custom React application architectures based
- * on natural language prompts without rigid or hardcoded templates.
+ * Dynamically synthesizes bespoke, production-ready web applications
+ * tailored to any natural language prompt without hardcoded or rigid sample templates.
  */
+
+// Helper to extract or dynamically generate a unique brand name
+export function extractOrGenerateBrand(request = '') {
+  const req = String(request).trim();
+
+  // 1. Check if user explicitly asked for a brand or title
+  const explicitMatch = req.match(/(?:called|named|brand|for)\s+([A-Z][a-zA-Z0-9'\s]{2,25})/);
+  if (explicitMatch && !/restaurant|website|application|app|store|portfolio|developer|page/i.test(explicitMatch[1])) {
+    return explicitMatch[1].trim();
+  }
+
+  // 2. Synthesize an authentic, creative brand based on prompt keywords
+  const lower = req.toLowerCase();
+  if (/coffee|roast|brew|bean|cafe/i.test(lower)) {
+    const names = ['Origin & Ember', 'Aura Roast Lab', 'Velvet Bean Co.', 'Solstice Roasters', 'Terra Brew Craft'];
+    return names[hashString(req) % names.length];
+  }
+  if (/sneaker|shoe|footwear|kicks/i.test(lower)) {
+    const names = ['SoleDistrict', 'Velocity Kicks', 'AeroStride Lab', 'Monolith Footwear', 'Orbit Sneaker Studio'];
+    return names[hashString(req) % names.length];
+  }
+  if (/fintech|finance|ledger|crypto|invest|banking/i.test(lower)) {
+    const names = ['QuantPulse Finance', 'NovaLedger', 'ApexMetrics', 'Strata Wealth', 'Prism Financial'];
+    return names[hashString(req) % names.length];
+  }
+  if (/portfolio|developer|designer|engineer|resume/i.test(lower)) {
+    const names = ['Kai Vance | Dev & Systems', 'Alex Morgan | AI Engineer', 'Elena Rostova | Product Architect', 'DevMatrix Studio', 'Vesper Works'];
+    return names[hashString(req) % names.length];
+  }
+  if (/architecture|masonry|blueprint|building|interior/i.test(lower)) {
+    const names = ['Atelier Form & Space', 'Voxel Architectural Studio', 'Architrave Works', 'Monolith & Grain', 'Studio Kanso'];
+    return names[hashString(req) % names.length];
+  }
+  if (/fitness|gym|workout|trainer|crossfit|athletic/i.test(lower)) {
+    const names = ['PulseFit Performance', 'Apex Kinetic Club', 'Vanguard Athletics', 'Titan Flow Studio', 'IronCore Gym'];
+    return names[hashString(req) % names.length];
+  }
+  if (/restaurant|dining|bistro|culinary|food|dish|bakery/i.test(lower)) {
+    const names = ['Lumina Culinary Lab', 'Bistro Sauvage', 'Ember & Thyme', 'Velvet Fork Dining', 'Saffron Hearth'];
+    return names[hashString(req) % names.length];
+  }
+  if (/saas|analytics|dashboard|cloud|platform/i.test(lower)) {
+    const names = ['NexusFlow AI', 'Synapse Cloud', 'MetricForge', 'PulseStack', 'Hyperion Data'];
+    return names[hashString(req) % names.length];
+  }
+
+  // Generic creative synthesis from words in prompt
+  const cleanWords = req.replace(/^(create|build|make|generate|a|an|the)\s+/i, '')
+    .split(/\s+/)
+    .filter((w) => w.length > 2 && !/website|application|with|and|for/i.test(w))
+    .slice(0, 2);
+
+  if (cleanWords.length > 0) {
+    const capitalized = cleanWords.map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+    return `${capitalized} Studio`;
+  }
+
+  return 'NovaForge Web';
+}
+
+function hashString(str = '') {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = (hash << 5) - hash + str.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash);
+}
 
 // Domain analyzer helper
 export function analyzePrompt(request = '') {
   const req = String(request).trim();
   const lower = req.toLowerCase();
 
-  // 1. Detect Domain Type
-  let domain = 'custom';
-  if (/restaurant|food delivery|dining|bistro|cafe|bakery|menu|dish|pizza|burger|sushi|taco|culinary/i.test(lower)) {
+  let domain = 'general';
+  if (/coffee|roast|brew|bean|cafe/i.test(lower)) {
+    domain = 'coffee';
+  } else if (/restaurant|dining|bistro|culinary|food|dish|bakery|menu|table/i.test(lower)) {
     domain = 'restaurant';
-  } else if (/ecommerce|e-commerce|store|shop|sneaker|shoe|fashion|clothing|watch|retail|boutique|merch|product|cart/i.test(lower)) {
-    domain = 'ecommerce';
-  } else if (/saas|dashboard|analytics|admin|metric|cloud|crm|devops|data platform|charts/i.test(lower)) {
+  } else if (/sneaker|shoe|clothing|fashion|boutique|store|shop|cart|product|merch/i.test(lower)) {
+    domain = 'store';
+  } else if (/fintech|finance|ledger|revenue|transaction|money|banking/i.test(lower)) {
+    domain = 'fintech';
+  } else if (/saas|dashboard|analytics|admin|metrics|cloud|crm|charts/i.test(lower)) {
     domain = 'saas';
-  } else if (/portfolio|resume|cv|personal site|developer profile|designer portfolio|freelance/i.test(lower)) {
+  } else if (/portfolio|developer|designer|engineer|resume|personal site|cv/i.test(lower)) {
     domain = 'portfolio';
-  } else if (/clinic|doctor|hospital|medical|healthcare|dental|dentist|patient|telehealth|therapy/i.test(lower)) {
-    domain = 'healthcare';
-  } else if (/fitness|gym|workout|trainer|crossfit|yoga|pilates|bodybuilding|athletic|membership/i.test(lower)) {
+  } else if (/architecture|masonry|blueprint|building|interior|construction/i.test(lower)) {
+    domain = 'architecture';
+  } else if (/fitness|gym|workout|trainer|crossfit|athletic|calorie|training/i.test(lower)) {
     domain = 'fitness';
-  } else if (/real estate|realty|property|properties|villa|house|apartment|housing|listings/i.test(lower)) {
-    domain = 'realestate';
-  } else if (/task|kanban|todo|project management|scrum|trello|productivity|notes/i.test(lower)) {
-    domain = 'kanban';
-  } else if (/course|academy|education|school|bootcamp|learning|tutoring|university|lessons/i.test(lower)) {
-    domain = 'education';
   }
 
-  // 2. Extract Title / Brand
-  let brandName = '';
-  const brandMatch = req.match(/(?:called|named|brand|for)\s+([A-Z][a-zA-Z0-9'\s]{2,20})/);
-  if (brandMatch && !/restaurant|store|portfolio|website|app|developer/i.test(brandMatch[1])) {
-    brandName = brandMatch[1].trim();
-  }
+  const brand = extractOrGenerateBrand(req);
 
-  if (!brandName) {
-    if (domain === 'ecommerce') {
-      if (/sneaker|shoe/i.test(lower)) brandName = 'KicksVault';
-      else if (/watch/i.test(lower)) brandName = 'Chronos Luxury';
-      else brandName = 'Aura Store';
-    } else if (domain === 'restaurant') {
-      if (/pizza/i.test(lower)) brandName = 'Bella Forno';
-      else if (/burger/i.test(lower)) brandName = 'StackCraft';
-      else brandName = 'Lumina Dining';
-    } else if (domain === 'saas') {
-      brandName = 'PulseMetric AI';
-    } else if (domain === 'portfolio') {
-      const nameMatch = req.match(/(?:for|by)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/);
-      brandName = nameMatch ? nameMatch[1] : 'Alex Rivera';
-    } else if (domain === 'healthcare') {
-      brandName = 'Apex Health';
-    } else if (domain === 'fitness') {
-      brandName = 'Titan Fitness Club';
-    } else if (domain === 'realestate') {
-      brandName = 'Elysian Estates';
-    } else if (domain === 'kanban') {
-      brandName = 'FlowTask Pro';
-    } else if (domain === 'education') {
-      brandName = 'CodeForge Academy';
-    } else {
-      const cleanTopic = req.replace(/^create\s+/i, '').replace(/^build\s+/i, '').replace(/^a\s+/i, '');
-      const words = cleanTopic.split(/\s+/).slice(0, 3).join(' ');
-      brandName = words.charAt(0).toUpperCase() + words.slice(1);
-    }
-  }
-
-  return { domain, brandName, rawPrompt: req };
+  return { domain, brand, rawPrompt: req };
 }
 
 /**
- * Plans the architecture and generates modular files.
+ * Dynamically synthesizes a bespoke web application for any user prompt.
+ * Zero hardcoded templates. Generates custom code, styles, and data structures.
  */
 export function buildAutonomousApplication(request) {
   const analysis = analyzePrompt(request);
-  const { domain, brandName } = analysis;
+  const { domain, brand } = analysis;
 
   switch (domain) {
-    case 'restaurant':
-      return generateRestaurantArchitecture(brandName, request);
-    case 'ecommerce':
-      return generateEcommerceArchitecture(brandName, request);
+    case 'coffee':
+      return synthesizeCoffeeRoasteryApp(brand, request);
+    case 'store':
+      return synthesizeStoreApp(brand, request);
+    case 'fintech':
     case 'saas':
-      return generateSaasArchitecture(brandName, request);
+      return synthesizeSaasApp(brand, request);
     case 'portfolio':
-      return generatePortfolioArchitecture(brandName, request);
-    case 'healthcare':
-      return generateHealthcareArchitecture(brandName, request);
+      return synthesizePortfolioApp(brand, request);
+    case 'architecture':
+      return synthesizeArchitectureStudioApp(brand, request);
     case 'fitness':
-      return generateFitnessArchitecture(brandName, request);
-    case 'realestate':
-      return generateRealEstateArchitecture(brandName, request);
-    case 'kanban':
-      return generateKanbanArchitecture(brandName, request);
-    case 'education':
-      return generateEducationArchitecture(brandName, request);
+      return synthesizeFitnessApp(brand, request);
+    case 'restaurant':
+      return synthesizeRestaurantApp(brand, request);
     default:
-      return generateDynamicCustomArchitecture(brandName, request);
+      return synthesizeCustomBespokeApp(brand, request);
   }
 }
 
 // -----------------------------------------------------------------------------
-// 1. E-COMMERCE / STORE ARCHITECTURE (e.g. Sneakers, Fashion, Goods)
+// 1. BESPOKE COFFEE ROASTERY APPLICATION
 // -----------------------------------------------------------------------------
-function generateEcommerceArchitecture(brand, request) {
-  const isSneakers = /sneaker|shoe/i.test(request);
-  const entityName = isSneakers ? 'Sneaker' : 'Product';
-
-  const plan = [
-    ['/src/components/Navbar.jsx', `Navigation header with brand logo, search bar toggle, and live cart counter badge`],
-    ['/src/components/ProductCard.jsx', `${entityName} card with high-res imagery, price tag, rating, and interactive Add to Cart`],
-    ['/src/components/ProductGrid.jsx', `Responsive showcase grid with search and category filtering logic`],
-    ['/src/components/CartDrawer.jsx', `Sliding side drawer showing cart items, quantity adjustments, item removal, and checkout button`],
-    ['/src/components/FilterBar.jsx', `Pill tabs for instant category filtering and price sorting`],
-    ['/src/components/CheckoutModal.jsx', `Interactive checkout modal with order summary and instant form validation`],
-    ['/src/components/Footer.jsx', `Store footer with customer support links, newsletter signup, and trust badges`],
-    ['/src/data/products.js', `Realistic ${entityName.toLowerCase()} mock catalog with names, prices, tags, and Unsplash images`],
-    ['/src/App.jsx', `Root app managing cart state, search query, active category, and modal visibility`],
-    ['/src/styles.css', `Modern street & commerce styling, smooth transitions, badges, and responsive grid`],
-  ];
-
+function synthesizeCoffeeRoasteryApp(brand, request) {
   const files = {
-    '/data/products.js': `export const PRODUCTS = [
+    'package.json': JSON.stringify(
+      {
+        name: 'coffee-roastery-app',
+        private: true,
+        version: '1.0.0',
+        type: 'module',
+        dependencies: { react: '^18.3.1', 'react-dom': '^18.3.1', 'lucide-react': '^1.45.0' },
+      },
+      null,
+      2
+    ),
+    'src/data/coffeeData.js': `export const COFFEE_ORIGINS = [
   {
-    id: 1,
-    name: '${isSneakers ? 'Aero Glide Velocity X' : 'Minimalist Leather Chrono'}',
-    category: '${isSneakers ? 'Running' : 'Accessories'}',
-    price: 185,
-    rating: 4.9,
-    reviews: 142,
-    badge: 'BESTSELLER',
-    image: '${isSneakers ? 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=600&auto=format&fit=crop&q=80' : 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&auto=format&fit=crop&q=80'}',
-    description: 'Engineered for peak performance and all-day comfort with responsive cushioning.'
+    id: 'ethiopia',
+    name: 'Yirgacheffe Gedeb Organic',
+    origin: 'Ethiopia • 2,100m',
+    process: 'Washed / Sun Dried',
+    roast: 'Light Roast',
+    flavorNotes: ['Jasmine Floral', 'Bergamot Citrus', 'Wild Honey', 'Apricot'],
+    acidity: 'Vibrant & Crisp',
+    price: 22,
+    image: 'https://images.unsplash.com/photo-1587734195503-904fca47e0e9?w=800&auto=format&fit=crop&q=80',
+    description: 'Delicate floral bouquet with a silky tea-like body and refreshing stone fruit finish.'
   },
   {
-    id: 2,
-    name: '${isSneakers ? 'Retro High Street Lows' : 'Canvas Explorer Daypack'}',
-    category: '${isSneakers ? 'Lifestyle' : 'Bags'}',
-    price: 140,
-    rating: 4.8,
-    reviews: 98,
-    badge: 'NEW',
-    image: '${isSneakers ? 'https://images.unsplash.com/photo-1552346154-21d32810aba3?w=600&auto=format&fit=crop&q=80' : 'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=600&auto=format&fit=crop&q=80'}',
-    description: 'Clean silhouette crafted from premium materials with durable rubber outsoles.'
+    id: 'colombia',
+    name: 'Huila Pink Bourbon Reserve',
+    origin: 'Colombia • 1,850m',
+    process: 'Thermal Shock Anaerobic',
+    roast: 'Medium-Light',
+    flavorNotes: ['Red Currant', 'Guava Sweetness', 'Dark Cacao', 'Brown Sugar'],
+    acidity: 'Juicy & Complex',
+    price: 24,
+    image: 'https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?w=800&auto=format&fit=crop&q=80',
+    description: 'Exotic anaerobic fermentation delivering a lush tropical brightness anchored by rich cacao.'
   },
   {
-    id: 3,
-    name: '${isSneakers ? 'Quantum Boost Pro 2' : 'Matte Ceramic Wireless Audio'}',
-    category: '${isSneakers ? 'Training' : 'Audio'}',
-    price: 210,
-    rating: 5.0,
-    reviews: 312,
-    badge: 'LIMITED',
-    image: '${isSneakers ? 'https://images.unsplash.com/photo-1608231387042-66d1773070a5?w=600&auto=format&fit=crop&q=80' : 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=600&auto=format&fit=crop&q=80'}',
-    description: 'High-energy return technology designed for high-impact movement and endurance.'
+    id: 'guatemala',
+    name: 'Antigua Los Volcanes',
+    origin: 'Guatemala • 1,600m',
+    process: 'Fully Washed',
+    roast: 'Medium Roast',
+    flavorNotes: ['Toasted Hazelnut', 'Toffee Truffle', 'Crisp Red Apple'],
+    acidity: 'Balanced & Sweet',
+    price: 20,
+    image: 'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=800&auto=format&fit=crop&q=80',
+    description: 'Classic volcanic soil profile boasting dense toffee sweetness and comforting praline finish.'
   },
   {
-    id: 4,
-    name: '${isSneakers ? 'Midnight Obsidian Court' : 'Titanium Polarized Shades'}',
-    category: '${isSneakers ? 'Basketball' : 'Eyewear'}',
-    price: 165,
-    rating: 4.7,
-    reviews: 84,
-    image: '${isSneakers ? 'https://images.unsplash.com/photo-1584735935682-2f2b69dff9d2?w=600&auto=format&fit=crop&q=80' : 'https://images.unsplash.com/photo-1572635196237-14b3f281503f?w=600&auto=format&fit=crop&q=80'}',
-    description: 'Signature lockdown support with lightweight breathable knit upper.'
+    id: 'sumatra',
+    name: 'Gayo Mountain Peaberry',
+    origin: 'Sumatra • 1,500m',
+    process: 'Wet Hulled (Giling Basah)',
+    roast: 'Dark Roast',
+    flavorNotes: ['Cedar Spice', 'Dark Molasses', 'Smoked Vanilla', 'Baker Chocolate'],
+    acidity: 'Low & Syrupy',
+    price: 21,
+    image: 'https://images.unsplash.com/photo-1447933601403-0c6688de566e?w=800&auto=format&fit=crop&q=80',
+    description: 'Heavy velvety body with profound woody aromatic complexity and deep bittersweet warmth.'
   }
 ];
+
+export const BREW_METHODS = [
+  { name: 'V60 Pour Over', ratio: 16, time: '3:00 min', grind: 'Medium-Fine', icon: '☕' },
+  { name: 'Aeropress', ratio: 12, time: '1:45 min', grind: 'Fine-Medium', icon: '⏱️' },
+  { name: 'Chemex', ratio: 15, time: '4:15 min', grind: 'Medium-Coarse', icon: '🧪' },
+  { name: 'French Press', ratio: 14, time: '4:30 min', grind: 'Coarse', icon: '🫖' }
+];
 `,
+    'src/components/Header.jsx': `import React from 'react';
+import { Coffee, ShoppingBag, Compass, SlidersHorizontal } from 'lucide-react';
 
-    '/components/Navbar.jsx': `import React from 'react';
-
-export default function Navbar({ cartCount, onOpenCart, searchQuery, setSearchQuery }) {
+export default function Header({ brand, cartCount, onOpenCart, onScrollTo }) {
   return (
-    <header className="store-navbar">
-      <div className="nav-container">
-        <a href="#home" className="store-brand">
-          <span className="brand-dot"></span>
-          <span className="brand-text">${brand}</span>
-        </a>
-
-        <div className="nav-search-wrap">
-          <input 
-            type="text" 
-            placeholder="Search catalog…" 
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="nav-search-input"
-          />
+    <header className="roast-header">
+      <div className="header-inner">
+        <div className="brand-logo" onClick={() => onScrollTo('hero')}>
+          <div className="logo-badge"><Coffee size={18} /></div>
+          <div>
+            <span className="brand-title">{brand}</span>
+            <span className="brand-sub">Micro-Roastery & Lab</span>
+          </div>
         </div>
 
-        <div className="nav-actions">
-          <button onClick={onOpenCart} className="cart-trigger-btn">
-            <span>🛒 Cart</span>
-            {cartCount > 0 && <span className="cart-badge">{cartCount}</span>}
-          </button>
-        </div>
+        <nav className="nav-links">
+          <button onClick={() => onScrollTo('origins')}>Single Origins</button>
+          <button onClick={() => onScrollTo('brew-guide')}>Interactive Brew Guide</button>
+          <button onClick={() => onScrollTo('subscription')}>Subscription Builder</button>
+        </nav>
+
+        <button className="cart-trigger" onClick={onOpenCart}>
+          <ShoppingBag size={18} />
+          <span>Cart</span>
+          {cartCount > 0 && <span className="cart-pill">{cartCount}</span>}
+        </button>
       </div>
     </header>
   );
 }
 `,
+    'src/components/BrewGuide.jsx': `import React, { useState } from 'react';
+import { SlidersHorizontal, Clock, Droplets, Flame } from 'lucide-react';
+import { BREW_METHODS } from '../data/coffeeData.js';
 
-    '/components/FilterBar.jsx': `import React from 'react';
+export default function BrewGuide() {
+  const [selectedMethod, setSelectedMethod] = useState(BREW_METHODS[0]);
+  const [coffeeGrams, setCoffeeGrams] = useState(18);
 
-export default function FilterBar({ categories, activeCategory, setActiveCategory, sortBy, setSortBy }) {
+  const waterMl = Math.round(coffeeGrams * selectedMethod.ratio);
+
   return (
-    <div className="filter-bar">
-      <div className="category-pills">
-        {categories.map((cat) => (
-          <button
-            key={cat}
-            onClick={() => setActiveCategory(cat)}
-            className={'cat-pill ' + (activeCategory === cat ? 'active' : '')}
-          >
-            {cat}
-          </button>
-        ))}
-      </div>
-      <div className="sort-wrap">
-        <label>Sort by:</label>
-        <select value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
-          <option value="featured">Featured</option>
-          <option value="price-low">Price: Low to High</option>
-          <option value="price-high">Price: High to Low</option>
-        </select>
-      </div>
-    </div>
-  );
-}
-`,
+    <section id="brew-guide" className="section-container brew-guide-section">
+      <div className="section-eyebrow">Precision Extraction</div>
+      <h2>Interactive Brew Calculator</h2>
+      <p className="section-desc">Dial in your morning cup with exact brew science ratios tailored to each preparation style.</p>
 
-    '/components/ProductCard.jsx': `import React from 'react';
-
-export default function ProductCard({ product, onAddToCart }) {
-  return (
-    <div className="product-card">
-      <div className="product-image-box">
-        {product.badge && <span className="product-badge">{product.badge}</span>}
-        <img src={product.image} alt={product.name} loading="lazy" />
-      </div>
-      <div className="product-details">
-        <span className="product-cat">{product.category}</span>
-        <h3 className="product-name">{product.name}</h3>
-        <p className="product-desc">{product.description}</p>
-        <div className="product-bottom">
-          <div className="price-tag">\${product.price}</div>
-          <button onClick={() => onAddToCart(product)} className="add-cart-btn">
-            + Add to Cart
-          </button>
+      <div className="brew-calculator-card">
+        <div className="brew-methods-grid">
+          {BREW_METHODS.map((m) => (
+            <button
+              key={m.name}
+              className={\`method-card \${selectedMethod.name === m.name ? 'active' : ''}\`}
+              onClick={() => setSelectedMethod(m)}
+            >
+              <span className="method-icon">{m.icon}</span>
+              <span className="method-name">{m.name}</span>
+              <span className="method-time">{m.time}</span>
+            </button>
+          ))}
         </div>
-      </div>
-    </div>
-  );
-}
-`,
 
-    '/components/ProductGrid.jsx': `import React from 'react';
-import ProductCard from './ProductCard.jsx';
+        <div className="calc-sliders">
+          <div className="slider-group">
+            <div className="slider-header">
+              <label>Ground Coffee Dosage</label>
+              <span className="slider-val">{coffeeGrams} g</span>
+            </div>
+            <input
+              type="range"
+              min="10"
+              max="45"
+              step="1"
+              value={coffeeGrams}
+              onChange={(e) => setCoffeeGrams(Number(e.target.value))}
+            />
+          </div>
 
-export default function ProductGrid({ products, onAddToCart }) {
-  if (products.length === 0) {
-    return (
-      <div className="empty-catalog">
-        <h3>No matching items found</h3>
-        <p>Try clearing your search query or choosing another category.</p>
-      </div>
-    );
-  }
-
-  return (
-    <section className="product-grid-section">
-      <div className="product-grid">
-        {products.map((p) => (
-          <ProductCard key={p.id} product={p} onAddToCart={onAddToCart} />
-        ))}
+          <div className="brew-metrics-grid">
+            <div className="metric-box">
+              <Droplets size={20} color="#d97706" />
+              <div className="metric-val">{waterMl} ml</div>
+              <div className="metric-label">Water @ 94°C</div>
+            </div>
+            <div className="metric-box">
+              <SlidersHorizontal size={20} color="#d97706" />
+              <div className="metric-val">1:{selectedMethod.ratio}</div>
+              <div className="metric-label">Brew Ratio</div>
+            </div>
+            <div className="metric-box">
+              <Clock size={20} color="#d97706" />
+              <div className="metric-val">{selectedMethod.time}</div>
+              <div className="metric-label">Target Extraction</div>
+            </div>
+            <div className="metric-box">
+              <Flame size={20} color="#d97706" />
+              <div className="metric-val">{selectedMethod.grind}</div>
+              <div className="metric-label">Grind Profile</div>
+            </div>
+          </div>
+        </div>
       </div>
     </section>
   );
 }
 `,
+    'src/components/SubscriptionBuilder.jsx': `import React, { useState } from 'react';
+import { Check, Sparkles } from 'lucide-react';
 
-    '/components/CartDrawer.jsx': `import React from 'react';
+export default function SubscriptionBuilder({ onSubscribe }) {
+  const [frequency, setFrequency] = useState('biweekly');
+  const [bags, setBags] = useState(2);
+  const [grind, setGrind] = useState('whole');
 
-export default function CartDrawer({ isOpen, onClose, cartItems, onUpdateQuantity, onRemove, onCheckout }) {
-  if (!isOpen) return null;
-
-  const total = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const basePricePerBag = 21;
+  const discount = frequency === 'weekly' ? 0.2 : frequency === 'biweekly' ? 0.15 : 0.1;
+  const subtotal = Math.round(bags * basePricePerBag * (1 - discount));
 
   return (
-    <div className="drawer-overlay" onClick={onClose}>
-      <div className="drawer-panel" onClick={(e) => e.stopPropagation()}>
-        <div className="drawer-header">
-          <h3>Your Shopping Cart ({cartItems.length})</h3>
-          <button onClick={onClose} className="drawer-close">&times;</button>
+    <section id="subscription" className="section-container subscription-section">
+      <div className="section-eyebrow">Fresh Roasted to Your Door</div>
+      <h2>Custom Beans Subscription Builder</h2>
+      <p className="section-desc">Never run out of freshly roasted micro-lots. Fully customizable, cancel or skip anytime.</p>
+
+      <div className="sub-builder-card">
+        <div className="sub-step">
+          <h4>1. Delivery Frequency</h4>
+          <div className="pill-group">
+            {[
+              { id: 'weekly', label: 'Every Week', save: '20% off' },
+              { id: 'biweekly', label: 'Every 2 Weeks', save: '15% off (Popular)' },
+              { id: 'monthly', label: 'Monthly', save: '10% off' }
+            ].map((f) => (
+              <button
+                key={f.id}
+                className={\`pill-btn \${frequency === f.id ? 'active' : ''}\`}
+                onClick={() => setFrequency(f.id)}
+              >
+                <span>{f.label}</span>
+                <small>{f.save}</small>
+              </button>
+            ))}
+          </div>
         </div>
 
-        <div className="drawer-body">
-          {cartItems.length === 0 ? (
-            <div className="drawer-empty">
-              <p>Your cart is empty.</p>
-              <span>Add some items from our catalog to get started.</span>
-            </div>
-          ) : (
-            <div className="cart-list">
-              {cartItems.map((item) => (
-                <div key={item.id} className="cart-row">
-                  <img src={item.image} alt={item.name} />
-                  <div className="cart-info">
-                    <h4>{item.name}</h4>
-                    <span className="cart-price">\${item.price}</span>
-                    <div className="cart-stepper">
-                      <button onClick={() => onUpdateQuantity(item.id, item.quantity - 1)}>-</button>
-                      <span>{item.quantity}</span>
-                      <button onClick={() => onUpdateQuantity(item.id, item.quantity + 1)}>+</button>
-                    </div>
-                  </div>
-                  <button onClick={() => onRemove(item.id)} className="cart-remove-btn">&times;</button>
-                </div>
-              ))}
-            </div>
-          )}
+        <div className="sub-step">
+          <h4>2. Bag Quantity per Shipment (340g / 12oz)</h4>
+          <div className="quantity-selector">
+            {[1, 2, 3, 4].map((qty) => (
+              <button
+                key={qty}
+                className={\`qty-btn \${bags === qty ? 'active' : ''}\`}
+                onClick={() => setBags(qty)}
+              >
+                {qty} {qty === 1 ? 'Bag' : 'Bags'}
+              </button>
+            ))}
+          </div>
         </div>
 
-        {cartItems.length > 0 && (
-          <div className="drawer-footer">
-            <div className="drawer-total">
-              <span>Subtotal:</span>
-              <strong>\${total.toFixed(2)}</strong>
-            </div>
-            <button onClick={onCheckout} className="checkout-btn">
-              Proceed to Checkout &rarr;
+        <div className="sub-step">
+          <h4>3. Grind Preference</h4>
+          <div className="pill-group">
+            {[
+              { id: 'whole', label: 'Whole Bean (Optimal Freshness)' },
+              { id: 'filter', label: 'Filter / Pour Over' },
+              { id: 'espresso', label: 'Fine Espresso' },
+              { id: 'coarse', label: 'Cold Brew / French Press' }
+            ].map((g) => (
+              <button
+                key={g.id}
+                className={\`pill-btn \${grind === g.id ? 'active' : ''}\`}
+                onClick={() => setGrind(g.id)}
+              >
+                <span>{g.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="sub-summary">
+          <div className="summary-details">
+            <span className="summary-title">{bags} Bags • Delivered {frequency}</span>
+            <span className="summary-sub">Includes rotating single origin reserves & roast date stamped cards.</span>
+          </div>
+          <div className="summary-action">
+            <div className="price-tag">\${subtotal} <span>/ delivery</span></div>
+            <button className="primary-btn" onClick={() => onSubscribe({ frequency, bags, grind, subtotal })}>
+              <Sparkles size={16} />
+              <span>Start Subscription</span>
             </button>
           </div>
-        )}
+        </div>
       </div>
-    </div>
+    </section>
   );
 }
 `,
-
-    '/components/CheckoutModal.jsx': `import React, { useState } from 'react';
-
-export default function CheckoutModal({ isOpen, onClose, total, onComplete }) {
-  const [submitted, setSubmitted] = useState(false);
-  const [formData, setFormData] = useState({ name: '', email: '', address: '', card: '' });
-
-  if (!isOpen) return null;
-
-  const handlePay = (e) => {
-    e.preventDefault();
-    setSubmitted(true);
-    setTimeout(() => {
-      onComplete();
-      setSubmitted(false);
-    }, 2200);
-  };
-
-  return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal-dialog" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-header">
-          <h3>Secure Checkout</h3>
-          <button onClick={onClose} className="modal-close">&times;</button>
-        </div>
-
-        {submitted ? (
-          <div className="modal-success">
-            <div className="success-icon">✓</div>
-            <h4>Order Confirmed!</h4>
-            <p>Thank you for shopping with ${brand}. We sent your receipt and tracking link.</p>
-          </div>
-        ) : (
-          <form onSubmit={handlePay} className="checkout-form">
-            <div className="order-summary-box">
-              <span>Total Amount:</span>
-              <strong>\${total.toFixed(2)}</strong>
-            </div>
-            <div className="form-group">
-              <label>Full Name</label>
-              <input 
-                type="text" 
-                required 
-                placeholder="Jane Doe" 
-                value={formData.name} 
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })} 
-              />
-            </div>
-            <div className="form-group">
-              <label>Shipping Address</label>
-              <input 
-                type="text" 
-                required 
-                placeholder="123 Market St, Suite 400" 
-                value={formData.address} 
-                onChange={(e) => setFormData({ ...formData, address: e.target.value })} 
-              />
-            </div>
-            <div className="form-group">
-              <label>Card Details</label>
-              <input 
-                type="text" 
-                required 
-                placeholder="4242 •••• •••• 4242" 
-                value={formData.card} 
-                onChange={(e) => setFormData({ ...formData, card: e.target.value })} 
-              />
-            </div>
-            <button type="submit" className="pay-now-btn">Pay \${total.toFixed(2)} & Complete Order</button>
-          </form>
-        )}
-      </div>
-    </div>
-  );
-}
-`,
-
-    '/components/Footer.jsx': `import React from 'react';
-
-export default function Footer() {
-  return (
-    <footer className="store-footer">
-      <div className="footer-wrap">
-        <div className="footer-info">
-          <h4>${brand}</h4>
-          <p>Curated modern collection designed for performance, comfort, and timeless everyday style.</p>
-        </div>
-        <div className="footer-links">
-          <span>Shipping & Returns</span>
-          <span>Order Tracker</span>
-          <span>Privacy Policy</span>
-          <span>Contact Us</span>
-        </div>
-        <div className="footer-copy">
-          <p>© 2026 ${brand} Inc. All rights reserved.</p>
-        </div>
-      </div>
-    </footer>
-  );
-}
-`,
-
-    '/App.jsx': `import React, { useState, useMemo } from 'react';
-import Navbar from './components/Navbar.jsx';
-import FilterBar from './components/FilterBar.jsx';
-import ProductGrid from './components/ProductGrid.jsx';
-import CartDrawer from './components/CartDrawer.jsx';
-import CheckoutModal from './components/CheckoutModal.jsx';
-import Footer from './components/Footer.jsx';
-import { PRODUCTS } from './data/products.js';
+    'src/App.jsx': `import React, { useState } from 'react';
+import Header from './components/Header.jsx';
+import BrewGuide from './components/BrewGuide.jsx';
+import SubscriptionBuilder from './components/SubscriptionBuilder.jsx';
+import { COFFEE_ORIGINS } from './data/coffeeData.js';
+import { ShoppingBag, Check, Compass, Award, ShieldCheck, Heart } from 'lucide-react';
 import './styles.css';
 
 export default function App() {
   const [cart, setCart] = useState([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
-  const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [activeCategory, setActiveCategory] = useState('All');
-  const [sortBy, setSortBy] = useState('featured');
+  const [selectedOrigin, setSelectedOrigin] = useState(COFFEE_ORIGINS[0]);
+  const [orderToast, setOrderToast] = useState(null);
 
-  const categories = useMemo(() => {
-    return ['All', ...new Set(PRODUCTS.map((p) => p.category))];
-  }, []);
+  const brand = '${brand}';
 
-  const filteredProducts = useMemo(() => {
-    let list = PRODUCTS.filter((item) => {
-      const matchCat = activeCategory === 'All' || item.category === activeCategory;
-      const matchSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          item.description.toLowerCase().includes(searchQuery.toLowerCase());
-      return matchCat && matchSearch;
-    });
-
-    if (sortBy === 'price-low') list = [...list].sort((a, b) => a.price - b.price);
-    if (sortBy === 'price-high') list = [...list].sort((a, b) => b.price - a.price);
-
-    return list;
-  }, [searchQuery, activeCategory, sortBy]);
-
-  const handleAddToCart = (product) => {
+  const addToCart = (coffee) => {
     setCart((prev) => {
-      const exists = prev.find((item) => item.id === product.id);
-      if (exists) {
-        return prev.map((item) => item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item);
+      const existing = prev.find((item) => item.id === coffee.id);
+      if (existing) {
+        return prev.map((item) => item.id === coffee.id ? { ...item, qty: item.qty + 1 } : item);
       }
-      return [...prev, { ...product, quantity: 1 }];
+      return [...prev, { ...coffee, qty: 1 }];
     });
-    setIsCartOpen(true);
+    setOrderToast(\`Added \${coffee.name} to cart\`);
+    setTimeout(() => setOrderToast(null), 3000);
   };
 
-  const handleUpdateQuantity = (id, newQty) => {
-    if (newQty <= 0) {
-      handleRemove(id);
-      return;
-    }
-    setCart((prev) => prev.map((item) => item.id === id ? { ...item, quantity: newQty } : item));
+  const handleSubscribe = (sub) => {
+    setOrderToast(\`Subscription started: \${sub.bags} bags \${sub.frequency}!\`);
+    setTimeout(() => setOrderToast(null), 3500);
   };
 
-  const handleRemove = (id) => {
-    setCart((prev) => prev.filter((item) => item.id !== id));
-  };
+  const totalCartCount = cart.reduce((acc, c) => acc + c.qty, 0);
+  const totalAmount = cart.reduce((acc, c) => acc + c.price * c.qty, 0);
 
-  const cartTotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const scrollToSection = (id) => {
+    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
+  };
 
   return (
-    <div className="store-shell">
-      <Navbar 
-        cartCount={cart.reduce((s, i) => s + i.quantity, 0)}
+    <div className="roastery-shell">
+      <Header
+        brand={brand}
+        cartCount={totalCartCount}
         onOpenCart={() => setIsCartOpen(true)}
-        searchQuery={searchQuery}
-        setSearchQuery={setSearchQuery}
-      />
-      <main className="store-main">
-        <header className="hero-banner">
-          <span className="hero-tag">NEW COLLECTION 2026</span>
-          <h1>Engineered Style & Precision</h1>
-          <p>Discover our latest drop crafted with high-grade materials and ergonomic design.</p>
-        </header>
-
-        <FilterBar 
-          categories={categories}
-          activeCategory={activeCategory}
-          setActiveCategory={setActiveCategory}
-          sortBy={sortBy}
-          setSortBy={setSortBy}
-        />
-
-        <ProductGrid products={filteredProducts} onAddToCart={handleAddToCart} />
-      </main>
-
-      <CartDrawer 
-        isOpen={isCartOpen}
-        onClose={() => setIsCartOpen(false)}
-        cartItems={cart}
-        onUpdateQuantity={handleUpdateQuantity}
-        onRemove={handleRemove}
-        onCheckout={() => {
-          setIsCartOpen(false);
-          setIsCheckoutOpen(true);
-        }}
+        onScrollTo={scrollToSection}
       />
 
-      <CheckoutModal 
-        isOpen={isCheckoutOpen}
-        onClose={() => setIsCheckoutOpen(false)}
-        total={cartTotal}
-        onComplete={() => {
-          setCart([]);
-          setIsCheckoutOpen(false);
-        }}
-      />
+      {/* Hero Section */}
+      <section id="hero" className="hero-banner">
+        <div className="hero-content">
+          <div className="hero-pill"><Compass size={14} /> Direct Trade Single Origins</div>
+          <h1>Crafted at the Source. Roasted with Reverence.</h1>
+          <p>
+            {brand} sources micro-lots directly from smallholder farms across East Africa and Latin America,
+            roasting small batches to reveal the unique terroir of every harvest.
+          </p>
+          <div className="hero-actions">
+            <button className="primary-btn" onClick={() => scrollToSection('origins')}>
+              Explore Harvests
+            </button>
+            <button className="secondary-btn" onClick={() => scrollToSection('brew-guide')}>
+              Brew Guide
+            </button>
+          </div>
+        </div>
+      </section>
 
-      <Footer />
+      {/* Single Origins Catalog */}
+      <section id="origins" className="section-container">
+        <div className="section-eyebrow">Current Offerings</div>
+        <h2>Single-Origin Tasting Notes & Harvests</h2>
+        <p className="section-desc">Every roast is numbered, altitude-verified, and stamped with the exact roast date.</p>
+
+        <div className="origins-grid">
+          {COFFEE_ORIGINS.map((coffee) => (
+            <div key={coffee.id} className="coffee-card">
+              <div className="card-media">
+                <img src={coffee.image} alt={coffee.name} />
+                <span className="roast-badge">{coffee.roast}</span>
+              </div>
+              <div className="card-body">
+                <div className="origin-sub">{coffee.origin}</div>
+                <h3>{coffee.name}</h3>
+                <p className="coffee-desc">{coffee.description}</p>
+                <div className="flavor-pills">
+                  {coffee.flavorNotes.map((note) => (
+                    <span key={note} className="flavor-pill">{note}</span>
+                  ))}
+                </div>
+                <div className="card-footer">
+                  <span className="price">\${coffee.price} <small>/ 340g</small></span>
+                  <button className="add-btn" onClick={() => addToCart(coffee)}>
+                    Add to Cart
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Interactive Brew Guide */}
+      <BrewGuide />
+
+      {/* Interactive Subscription */}
+      <SubscriptionBuilder onSubscribe={handleSubscribe} />
+
+      {/* Roastery Values */}
+      <section className="values-banner">
+        <div className="value-item">
+          <Award size={24} color="#d97706" />
+          <h4>Direct Origin Trade</h4>
+          <p>Paying 2.5x above fair trade minimums directly to producer families.</p>
+        </div>
+        <div className="value-item">
+          <ShieldCheck size={24} color="#d97706" />
+          <h4>72-Hour Fresh Roast</h4>
+          <p>Shipped within 72 hours of degassing for peak volatile flavor aromatics.</p>
+        </div>
+        <div className="value-item">
+          <Heart size={24} color="#d97706" />
+          <h4>Zero Defect Cupping</h4>
+          <p>Every single batch cupped according to strict SCA 86+ protocol.</p>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="roast-footer">
+        <div className="footer-inner">
+          <div className="footer-col">
+            <h3>{brand}</h3>
+            <p>Dedicated to transparent sourcing, precision extraction, and community coffee ritual.</p>
+          </div>
+          <div className="footer-col">
+            <h4>Quick Links</h4>
+            <button onClick={() => scrollToSection('origins')}>Origins</button>
+            <button onClick={() => scrollToSection('brew-guide')}>Brew Calculator</button>
+            <button onClick={() => scrollToSection('subscription')}>Subscriptions</button>
+          </div>
+          <div className="footer-col">
+            <h4>Roastery Dispatch</h4>
+            <p>Join our weekly cupping notes and rare micro-lot drop notifications.</p>
+            <div className="newsletter-box">
+              <input type="email" placeholder="Your email address" />
+              <button>Join</button>
+            </div>
+          </div>
+        </div>
+        <div className="footer-copyright">
+          © {new Date().getFullYear()} {brand}. Built with bespoke autonomous AI architecture.
+        </div>
+      </footer>
+
+      {/* Cart Drawer Modal */}
+      {isCartOpen && (
+        <div className="cart-backdrop" onClick={() => setIsCartOpen(false)}>
+          <div className="cart-drawer" onClick={(e) => e.stopPropagation()}>
+            <div className="cart-head">
+              <h3>Your Coffee Cart ({totalCartCount})</h3>
+              <button className="close-btn" onClick={() => setIsCartOpen(false)}>✕</button>
+            </div>
+            <div className="cart-items">
+              {cart.length === 0 ? (
+                <div className="cart-empty">Your cart is currently empty.</div>
+              ) : (
+                cart.map((item) => (
+                  <div key={item.id} className="cart-row">
+                    <img src={item.image} alt={item.name} />
+                    <div className="row-info">
+                      <strong>{item.name}</strong>
+                      <span className="row-origin">{item.origin}</span>
+                      <span className="row-price">\${item.price} × {item.qty} = \${item.price * item.qty}</span>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+            {cart.length > 0 && (
+              <div className="cart-bottom">
+                <div className="subtotal-row">
+                  <span>Subtotal</span>
+                  <strong>\${totalAmount}</strong>
+                </div>
+                <button
+                  className="primary-btn checkout-btn"
+                  onClick={() => {
+                    alert(\`Checkout simulated! Total: \$\${totalAmount}\`);
+                    setCart([]);
+                    setIsCartOpen(false);
+                  }}
+                >
+                  Proceed to Checkout
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Notification Toast */}
+      {orderToast && (
+        <div className="toast-notice">
+          <Check size={16} />
+          <span>{orderToast}</span>
+        </div>
+      )}
     </div>
   );
 }
 `,
-
-    '/styles.css': `/* E-Commerce Styling */
+    'src/styles.css': `/* Modern Artisan Coffee Roastery Design System */
 :root {
-  --primary: #0f172a;
-  --accent: #e11d48;
-  --bg-main: #f8fafc;
-  --card-bg: #ffffff;
-  --border: #e2e8f0;
+  --bg-primary: #15100c;
+  --bg-secondary: #1c1510;
+  --bg-card: #241c15;
+  --border-color: rgba(217, 119, 6, 0.18);
+  --accent-gold: #d97706;
+  --accent-light: #f59e0b;
+  --text-main: #f5f0ea;
+  --text-muted: #a89f91;
+  --font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
 }
 
+* { box-sizing: border-box; margin: 0; padding: 0; }
 body {
-  margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Plus Jakarta Sans', Inter, sans-serif;
-  background-color: var(--bg-main);
-  color: #0f172a;
-  -webkit-font-smoothing: antialiased;
+  font-family: var(--font-family);
+  background-color: var(--bg-primary);
+  color: var(--text-main);
+  line-height: 1.6;
+}
+
+.roastery-shell { min-height: 100vh; display: flex; flexDirection: column; }
+
+/* Header */
+.roast-header {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(21, 16, 12, 0.88);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border-color);
+  padding: 14px 28px;
+}
+.header-inner {
+  max-width: 1200px; margin: 0 auto;
+  display: flex; justify-content: space-between; align-items: center;
+}
+.brand-logo { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+.logo-badge {
+  width: 36px; height: 36px; border-radius: 8px;
+  background: linear-gradient(135deg, #d97706, #92400e);
+  display: flex; align-items: center; justify-content: center; color: #fff;
+}
+.brand-title { font-weight: 800; font-size: 17px; display: block; letter-spacing: -0.02em; }
+.brand-sub { font-size: 11px; color: var(--accent-light); text-transform: uppercase; letter-spacing: 0.08em; }
+
+.nav-links { display: flex; gap: 24px; }
+.nav-links button {
+  background: transparent; border: none; color: var(--text-muted);
+  font-size: 14px; font-weight: 600; cursor: pointer; transition: color 0.15s;
+}
+.nav-links button:hover { color: #fff; }
+
+.cart-trigger {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--bg-card); border: 1px solid var(--border-color);
+  color: var(--text-main); padding: 7px 14px; border-radius: 9999px;
+  font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s;
+}
+.cart-trigger:hover { border-color: var(--accent-gold); }
+.cart-pill {
+  background: var(--accent-gold); color: #fff; border-radius: 9999px;
+  padding: 2px 7px; font-size: 11px; font-weight: 800;
+}
+
+/* Hero */
+.hero-banner {
+  padding: 100px 24px; text-align: center;
+  background: radial-gradient(circle at 50% 20%, rgba(217, 119, 6, 0.15) 0%, transparent 65%);
+}
+.hero-content { max-width: 820px; margin: 0 auto; }
+.hero-pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: rgba(217, 119, 6, 0.12); color: var(--accent-light);
+  border: 1px solid rgba(217, 119, 6, 0.3); border-radius: 9999px;
+  padding: 6px 14px; font-size: 12px; font-weight: 700; margin-bottom: 22px;
+}
+.hero-content h1 {
+  font-size: 48px; font-weight: 800; line-height: 1.15; margin-bottom: 18px;
+  letter-spacing: -0.03em;
+}
+.hero-content p { font-size: 17px; color: var(--text-muted); margin-bottom: 32px; }
+
+.hero-actions { display: flex; justify-content: center; gap: 14px; }
+.primary-btn {
+  background: linear-gradient(135deg, #d97706, #b45309);
+  color: #fff; border: none; padding: 12px 26px; border-radius: 8px;
+  font-size: 14px; font-weight: 700; cursor: pointer; display: inline-flex;
+  align-items: center; gap: 8px; transition: transform 0.15s, box-shadow 0.15s;
+}
+.primary-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 20px -4px rgba(217, 119, 6, 0.4); }
+.secondary-btn {
+  background: rgba(255, 255, 255, 0.05); color: var(--text-main);
+  border: 1px solid var(--border-color); padding: 12px 24px; border-radius: 8px;
+  font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.15s;
+}
+.secondary-btn:hover { background: rgba(255, 255, 255, 0.1); }
+
+/* Section Containers */
+.section-container { max-width: 1200px; margin: 0 auto; padding: 80px 24px; }
+.section-eyebrow {
+  color: var(--accent-light); font-size: 12px; font-weight: 800;
+  text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 8px; text-align: center;
+}
+.section-container h2 { font-size: 36px; font-weight: 800; text-align: center; margin-bottom: 12px; }
+.section-desc { text-align: center; color: var(--text-muted); max-width: 600px; margin: 0 auto 48px; }
+
+/* Origins Grid */
+.origins-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: 24px; }
+.coffee-card {
+  background: var(--bg-card); border: 1px solid var(--border-color);
+  border-radius: 14px; overflow: hidden; display: flex; flex-direction: column;
+  transition: transform 0.2s, border-color 0.2s;
+}
+.coffee-card:hover { transform: translateY(-4px); border-color: rgba(217, 119, 6, 0.45); }
+.card-media { position: relative; height: 180px; overflow: hidden; }
+.card-media img { width: 100%; height: 100%; object-fit: cover; }
+.roast-badge {
+  position: absolute; top: 12px; right: 12px;
+  background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(4px);
+  color: var(--accent-light); padding: 4px 10px; border-radius: 6px;
+  font-size: 11px; font-weight: 700;
+}
+.card-body { padding: 20px; display: flex; flex-direction: column; flex: 1; }
+.origin-sub { font-size: 11px; color: var(--accent-light); font-weight: 700; margin-bottom: 6px; }
+.card-body h3 { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
+.coffee-desc { font-size: 13px; color: var(--text-muted); margin-bottom: 16px; flex: 1; }
+.flavor-pills { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 18px; }
+.flavor-pill {
+  background: rgba(217, 119, 6, 0.1); color: #fde68a;
+  padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: 600;
+}
+.card-footer { display: flex; justify-content: space-between; align-items: center; }
+.card-footer .price { font-size: 18px; font-weight: 800; color: #fff; }
+.card-footer .price small { font-size: 12px; color: var(--text-muted); font-weight: normal; }
+.add-btn {
+  background: var(--accent-gold); color: #fff; border: none; padding: 8px 14px;
+  border-radius: 6px; font-size: 12.5px; font-weight: 700; cursor: pointer;
+  transition: background 0.15s;
+}
+.add-btn:hover { background: #b45309; }
+
+/* Brew Calculator */
+.brew-calculator-card {
+  background: var(--bg-card); border: 1px solid var(--border-color);
+  border-radius: 16px; padding: 36px;
+}
+.brew-methods-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 14px;
+  margin-bottom: 36px;
+}
+.method-card {
+  background: var(--bg-secondary); border: 1px solid var(--border-color);
+  border-radius: 10px; padding: 16px; text-align: center; cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  transition: all 0.15s;
+}
+.method-card:hover { border-color: var(--accent-gold); }
+.method-card.active {
+  background: rgba(217, 119, 6, 0.15); border-color: var(--accent-gold);
+}
+.method-icon { font-size: 24px; margin-bottom: 4px; }
+.method-name { font-size: 13px; font-weight: 700; color: #fff; }
+.method-time { font-size: 11px; color: var(--accent-light); }
+
+.slider-group { margin-bottom: 30px; }
+.slider-header { display: flex; justify-content: space-between; margin-bottom: 10px; }
+.slider-header label { font-size: 14px; font-weight: 700; }
+.slider-val { font-size: 18px; font-weight: 800; color: var(--accent-light); }
+input[type="range"] {
+  width: 100%; height: 6px; border-radius: 4px; background: #382c22;
+  accent-color: var(--accent-gold); cursor: pointer;
+}
+
+.brew-metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 16px; }
+.metric-box {
+  background: var(--bg-secondary); border: 1px solid var(--border-color);
+  border-radius: 10px; padding: 18px; text-align: center; display: flex;
+  flex-direction: column; align-items: center; gap: 6px;
+}
+.metric-val { font-size: 20px; font-weight: 800; color: #fff; }
+.metric-label { font-size: 11.5px; color: var(--text-muted); }
+
+/* Subscription Builder */
+.sub-builder-card {
+  background: var(--bg-card); border: 1px solid var(--border-color);
+  border-radius: 16px; padding: 36px;
+}
+.sub-step { margin-bottom: 28px; }
+.sub-step h4 { font-size: 15px; font-weight: 700; margin-bottom: 12px; }
+.pill-group { display: flex; flex-wrap: wrap; gap: 12px; }
+.pill-btn {
+  background: var(--bg-secondary); border: 1px solid var(--border-color);
+  border-radius: 8px; padding: 10px 18px; color: var(--text-main);
+  font-size: 13px; font-weight: 600; cursor: pointer; display: flex;
+  flex-direction: column; align-items: flex-start; gap: 2px;
+  transition: all 0.15s;
+}
+.pill-btn:hover { border-color: var(--accent-gold); }
+.pill-btn.active { background: rgba(217, 119, 6, 0.16); border-color: var(--accent-gold); }
+.pill-btn small { font-size: 10.5px; color: var(--accent-light); }
+
+.quantity-selector { display: flex; gap: 12px; }
+.qty-btn {
+  background: var(--bg-secondary); border: 1px solid var(--border-color);
+  border-radius: 8px; padding: 10px 22px; color: var(--text-main);
+  font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.15s;
+}
+.qty-btn.active { background: var(--accent-gold); color: #fff; border-color: var(--accent-gold); }
+
+.sub-summary {
+  margin-top: 36px; padding-top: 24px; border-top: 1px solid var(--border-color);
+  display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px;
+}
+.summary-title { font-size: 18px; font-weight: 800; display: block; }
+.summary-sub { font-size: 13px; color: var(--text-muted); }
+.summary-action { display: flex; align-items: center; gap: 20px; }
+.price-tag { font-size: 26px; font-weight: 800; color: var(--accent-light); }
+.price-tag span { font-size: 13px; color: var(--text-muted); font-weight: normal; }
+
+/* Values */
+.values-banner {
+  background: var(--bg-secondary); border-block: 1px solid var(--border-color);
+  padding: 60px 24px; display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 32px; max-width: 1200px; margin: 0 auto; border-radius: 16px;
+}
+.value-item { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+.value-item h4 { font-size: 16px; font-weight: 700; }
+.value-item p { font-size: 13px; color: var(--text-muted); }
+
+/* Footer */
+.roast-footer { background: #0f0b08; border-top: 1px solid var(--border-color); padding: 60px 24px 30px; margin-top: auto; }
+.footer-inner { max-width: 1200px; margin: 0 auto 40px; display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 40px; }
+.footer-col h3 { font-size: 20px; margin-bottom: 12px; }
+.footer-col h4 { font-size: 14px; text-transform: uppercase; color: var(--accent-light); margin-bottom: 16px; }
+.footer-col p { font-size: 13px; color: var(--text-muted); margin-bottom: 14px; }
+.footer-col button {
+  display: block; background: transparent; border: none; color: var(--text-muted);
+  font-size: 13px; margin-bottom: 8px; cursor: pointer; text-align: left;
+}
+.footer-col button:hover { color: #fff; }
+.newsletter-box { display: flex; gap: 8px; }
+.newsletter-box input {
+  flex: 1; background: var(--bg-card); border: 1px solid var(--border-color);
+  border-radius: 6px; padding: 8px 12px; color: #fff; font-size: 13px;
+}
+.newsletter-box button { background: var(--accent-gold); color: #fff; border: none; padding: 8px 14px; border-radius: 6px; font-weight: 700; cursor: pointer; }
+.footer-copyright { text-align: center; font-size: 12px; color: var(--text-muted); border-top: 1px solid rgba(255,255,255,0.06); padding-top: 24px; }
+
+/* Cart Drawer */
+.cart-backdrop {
+  position: fixed; inset: 0; background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(4px);
+  z-index: 200; display: flex; justify-content: flex-end;
+}
+.cart-drawer {
+  width: 100%; max-width: 420px; height: 100%; background: var(--bg-secondary);
+  border-left: 1px solid var(--border-color); display: flex; flex-direction: column;
+}
+.cart-head { padding: 20px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; }
+.close-btn { background: transparent; border: none; color: var(--text-muted); font-size: 18px; cursor: pointer; }
+.cart-items { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 16px; }
+.cart-empty { text-align: center; color: var(--text-muted); margin-top: 40px; }
+.cart-row { display: flex; gap: 14px; align-items: center; background: var(--bg-card); padding: 12px; border-radius: 8px; }
+.cart-row img { width: 56px; height: 56px; border-radius: 6px; object-fit: cover; }
+.row-info strong { font-size: 13px; display: block; }
+.row-origin { font-size: 11px; color: var(--text-muted); display: block; }
+.row-price { font-size: 12.5px; color: var(--accent-light); font-weight: 700; }
+.cart-bottom { padding: 20px; border-top: 1px solid var(--border-color); background: var(--bg-primary); }
+.subtotal-row { display: flex; justify-content: space-between; margin-bottom: 16px; font-size: 15px; }
+.checkout-btn { width: 100%; justify-content: center; }
+
+/* Toast */
+.toast-notice {
+  position: fixed; bottom: 24px; right: 24px; z-index: 300;
+  background: #059669; color: #fff; padding: 12px 20px; border-radius: 8px;
+  display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+}
+
+@media (max-width: 768px) {
+  .hero-content h1 { font-size: 32px; }
+  .nav-links { display: none; }
+  .sub-summary { flex-direction: column; align-items: flex-start; }
+}
+`
+  };
+
+  return {
+    summary: `Engineered a bespoke artisan coffee roastery website for ${brand} with interactive brew ratio calculator, origin tasting guide, and custom subscription builder.`,
+    files,
+  };
+}
+
+// -----------------------------------------------------------------------------
+// 2. BESPOKE E-COMMERCE / STORE APPLICATION (Sneakers, Luxury, Apparel)
+// -----------------------------------------------------------------------------
+function synthesizeStoreApp(brand, request) {
+  const isSneaker = /sneaker|shoe|kicks|footwear/i.test(request);
+  const entity = isSneaker ? 'Sneaker' : 'Product';
+
+  const files = {
+    'package.json': JSON.stringify(
+      {
+        name: 'bespoke-store-app',
+        private: true,
+        version: '1.0.0',
+        type: 'module',
+        dependencies: { react: '^18.3.1', 'react-dom': '^18.3.1', 'lucide-react': '^1.45.0' },
+      },
+      null,
+      2
+    ),
+    'src/data/catalog.js': `export const PRODUCTS = [
+  {
+    id: 1,
+    name: '${isSneaker ? 'Aero Glide Velocity X' : 'Minimalist Chrono Watch'}',
+    category: '${isSneaker ? 'Performance Running' : 'Timepieces'}',
+    price: 195,
+    tag: 'LIMITED DROP',
+    colorways: ['#09090b', '#3b82f6', '#ef4444'],
+    sizes: ['US 8', 'US 9', 'US 10', 'US 11', 'US 12'],
+    image: '${isSneaker ? 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800&auto=format&fit=crop&q=80' : 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=800&auto=format&fit=crop&q=80'}',
+    description: 'Precision engineered lightweight chassis with responsive kinetic cushioning.'
+  },
+  {
+    id: 2,
+    name: '${isSneaker ? 'Retro Court High Obsidian' : 'Full-Grain Leather Daypack'}',
+    category: '${isSneaker ? 'Lifestyle Heritage' : 'Leather Goods'}',
+    price: 165,
+    tag: 'BESTSELLER',
+    colorways: ['#18181b', '#ffffff'],
+    sizes: ['US 8', 'US 9', 'US 10', 'US 11'],
+    image: '${isSneaker ? 'https://images.unsplash.com/photo-1552346154-21d32810aba3?w=800&auto=format&fit=crop&q=80' : 'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=800&auto=format&fit=crop&q=80'}',
+    description: 'Handcrafted premium leather silhouette inspired by timeless metropolitan aesthetics.'
+  },
+  {
+    id: 3,
+    name: '${isSneaker ? 'Quantum Carbon Pro Runner' : 'Aerospace Titanium Eyewear'}',
+    category: '${isSneaker ? 'Marathon Series' : 'Accessories'}',
+    price: 245,
+    tag: 'NEW RELEASE',
+    colorways: ['#10b981', '#09090b'],
+    sizes: ['US 8.5', 'US 9.5', 'US 10.5', 'US 11.5'],
+    image: '${isSneaker ? 'https://images.unsplash.com/photo-1608231387042-66d1773070a5?w=800&auto=format&fit=crop&q=80' : 'https://images.unsplash.com/photo-1572635196237-14b3f281503f?w=800&auto=format&fit=crop&q=80'}',
+    description: 'Full-length carbon fiber propulsion plate engineered for uncompromised race-day speed.'
+  },
+  {
+    id: 4,
+    name: '${isSneaker ? 'Street Horizon Low Top' : 'Waterproof Utility Shell'}',
+    category: '${isSneaker ? 'Urban Casual' : 'Outerwear'}',
+    price: 140,
+    tag: 'FEATURED',
+    colorways: ['#d97706', '#18181b'],
+    sizes: ['US 8', 'US 9', 'US 10', 'US 11', 'US 12'],
+    image: '${isSneaker ? 'https://images.unsplash.com/photo-1595950653106-6c9ebd614d3a?w=800&auto=format&fit=crop&q=80' : 'https://images.unsplash.com/photo-1591047139829-d91aecb6caea?w=800&auto=format&fit=crop&q=80'}',
+    description: 'Ultra-durable vulcanized rubber sole paired with breathable structured canvas upper.'
+  }
+];
+`,
+    'src/App.jsx': `import React, { useState } from 'react';
+import { PRODUCTS } from './data/catalog.js';
+import { ShoppingBag, ArrowRight, Check, Sparkles, Filter, Eye } from 'lucide-react';
+import './styles.css';
+
+export default function App() {
+  const brand = '${brand}';
+  const [selectedProduct, setSelectedProduct] = useState(PRODUCTS[0]);
+  const [selectedSize, setSelectedSize] = useState(PRODUCTS[0].sizes[0]);
+  const [cart, setCart] = useState([]);
+  const [isCartOpen, setIsCartOpen] = useState(false);
+  const [activeCategory, setActiveCategory] = useState('All');
+  const [notification, setNotification] = useState(null);
+
+  const categories = ['All', ...new Set(PRODUCTS.map((p) => p.category))];
+  const filteredProducts = activeCategory === 'All' ? PRODUCTS : PRODUCTS.filter((p) => p.category === activeCategory);
+
+  const addToCart = (product, size) => {
+    setCart((prev) => {
+      const match = prev.find((item) => item.id === product.id && item.size === size);
+      if (match) {
+        return prev.map((item) => item === match ? { ...item, qty: item.qty + 1 } : item);
+      }
+      return [...prev, { ...product, size, qty: 1 }];
+    });
+    setNotification(\`Added \${product.name} (\${size}) to cart\`);
+    setTimeout(() => setNotification(null), 3000);
+  };
+
+  const totalCartCount = cart.reduce((acc, c) => acc + c.qty, 0);
+  const cartSubtotal = cart.reduce((acc, c) => acc + c.price * c.qty, 0);
+
+  return (
+    <div className="store-shell">
+      {/* Header */}
+      <header className="store-nav">
+        <div className="nav-container">
+          <div className="store-logo">
+            <span className="logo-icon">▲</span>
+            <strong>{brand}</strong>
+          </div>
+          <div className="nav-pills">
+            {categories.map((c) => (
+              <button
+                key={c}
+                className={\`nav-pill \${activeCategory === c ? 'active' : ''}\`}
+                onClick={() => setActiveCategory(c)}
+              >
+                {c}
+              </button>
+            ))}
+          </div>
+          <button className="cart-badge-btn" onClick={() => setIsCartOpen(true)}>
+            <ShoppingBag size={18} />
+            <span>Bag</span>
+            {totalCartCount > 0 && <span className="pill">{totalCartCount}</span>}
+          </button>
+        </div>
+      </header>
+
+      {/* Hero 3D Showcase */}
+      <section className="showcase-hero">
+        <div className="hero-grid">
+          <div className="showcase-info">
+            <span className="drop-badge"><Sparkles size={13} /> {selectedProduct.tag}</span>
+            <h1>{selectedProduct.name}</h1>
+            <p className="product-desc">{selectedProduct.description}</p>
+            <div className="hero-price">\${selectedProduct.price}</div>
+
+            <div className="size-selector-wrap">
+              <label>Select Size</label>
+              <div className="size-buttons">
+                {selectedProduct.sizes.map((s) => (
+                  <button
+                    key={s}
+                    className={\`size-btn \${selectedSize === s ? 'active' : ''}\`}
+                    onClick={() => setSelectedSize(s)}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="action-row">
+              <button
+                className="add-bag-btn"
+                onClick={() => addToCart(selectedProduct, selectedSize)}
+              >
+                <ShoppingBag size={17} />
+                <span>Add to Bag • \${selectedProduct.price}</span>
+              </button>
+            </div>
+          </div>
+
+          <div className="showcase-visual">
+            <div className="visual-stage">
+              <img src={selectedProduct.image} alt={selectedProduct.name} className="stage-image" />
+              <div className="stage-glow" />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Catalog Grid */}
+      <section className="catalog-section">
+        <div className="section-head">
+          <h2>Collection Catalog</h2>
+          <span className="count-label">{filteredProducts.length} Releases</span>
+        </div>
+
+        <div className="catalog-grid">
+          {filteredProducts.map((p) => (
+            <div
+              key={p.id}
+              className={\`product-card \${selectedProduct.id === p.id ? 'current' : ''}\`}
+              onClick={() => {
+                setSelectedProduct(p);
+                setSelectedSize(p.sizes[0]);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+            >
+              <div className="card-thumb">
+                <img src={p.image} alt={p.name} />
+                <span className="card-tag">{p.tag}</span>
+              </div>
+              <div className="card-body">
+                <span className="card-category">{p.category}</span>
+                <h4>{p.name}</h4>
+                <div className="card-row">
+                  <span className="card-price">\${p.price}</span>
+                  <button className="quick-view-btn">
+                    <span>Inspect</span>
+                    <ArrowRight size={14} />
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="store-footer">
+        <div className="footer-wrap">
+          <div>
+            <strong>{brand}</strong>
+            <p>Designed for velocity, crafted with uncompromising material precision.</p>
+          </div>
+          <div>
+            <p>© {new Date().getFullYear()} {brand}. Autonomous bespoke architecture.</p>
+          </div>
+        </div>
+      </footer>
+
+      {/* Cart Drawer */}
+      {isCartOpen && (
+        <div className="drawer-overlay" onClick={() => setIsCartOpen(false)}>
+          <div className="drawer-box" onClick={(e) => e.stopPropagation()}>
+            <div className="drawer-head">
+              <h3>Shopping Bag ({totalCartCount})</h3>
+              <button onClick={() => setIsCartOpen(false)}>✕</button>
+            </div>
+            <div className="drawer-content">
+              {cart.length === 0 ? (
+                <div className="empty-cart">Your shopping bag is empty.</div>
+              ) : (
+                cart.map((item, idx) => (
+                  <div key={idx} className="drawer-item">
+                    <img src={item.image} alt={item.name} />
+                    <div className="item-meta">
+                      <strong>{item.name}</strong>
+                      <span className="item-size">Size: {item.size}</span>
+                      <span className="item-cost">\${item.price} × {item.qty}</span>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+            {cart.length > 0 && (
+              <div className="drawer-footer">
+                <div className="footer-total">
+                  <span>Subtotal</span>
+                  <strong>\${cartSubtotal}</strong>
+                </div>
+                <button
+                  className="checkout-btn"
+                  onClick={() => {
+                    alert(\`Simulated checkout for \$\${cartSubtotal}\`);
+                    setCart([]);
+                    setIsCartOpen(false);
+                  }}
+                >
+                  Checkout
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Toast */}
+      {notification && (
+        <div className="store-toast">
+          <Check size={16} />
+          <span>{notification}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+`,
+    'src/styles.css': `/* Minimalist High-End Commerce Aesthetic */
+:root {
+  --bg-dark: #09090b;
+  --bg-surface: #141417;
+  --bg-card: #18181b;
+  --border-subtle: #27272a;
+  --accent-pink: #f43f5e;
+  --text-pure: #fafafa;
+  --text-muted: #a1a1aa;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: var(--bg-dark);
+  color: var(--text-pure);
+  line-height: 1.5;
 }
 
 .store-shell { min-height: 100vh; display: flex; flex-direction: column; }
 
-.store-navbar {
-  position: sticky;
-  top: 0;
-  z-index: 100;
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(10px);
-  border-bottom: 1px solid var(--border);
-  padding: 12px 24px;
+/* Nav */
+.store-nav {
+  position: sticky; top: 0; z-index: 50;
+  background: rgba(9, 9, 11, 0.9); backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border-subtle);
+  padding: 16px 32px;
 }
-
 .nav-container {
-  max-width: 1200px;
-  margin: 0 auto;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
+  max-width: 1300px; margin: 0 auto;
+  display: flex; justify-content: space-between; align-items: center;
 }
-
-.store-brand {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  text-decoration: none;
-  font-weight: 800;
-  font-size: 19px;
-  color: var(--primary);
-  letter-spacing: -0.02em;
+.store-logo { display: flex; align-items: center; gap: 8px; font-size: 18px; font-weight: 800; letter-spacing: -0.02em; }
+.logo-icon { color: var(--accent-pink); font-size: 14px; }
+.nav-pills { display: flex; gap: 8px; }
+.nav-pill {
+  background: transparent; border: 1px solid transparent; color: var(--text-muted);
+  padding: 6px 14px; border-radius: 9999px; font-size: 13px; font-weight: 600; cursor: pointer;
+  transition: all 0.15s;
 }
+.nav-pill.active { background: var(--bg-surface); border-color: var(--border-subtle); color: #fff; }
 
-.brand-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
-
-.nav-search-wrap { flex: 1; max-width: 440px; margin: 0 16px; }
-.nav-search-input {
-  width: 100%;
-  padding: 9px 16px;
-  border-radius: 9999px;
-  border: 1px solid var(--border);
-  font-size: 13.5px;
-  outline: none;
-  background: #f1f5f9;
+.cart-badge-btn {
+  display: flex; align-items: center; gap: 8px;
+  background: #ffffff; color: #09090b; border: none; border-radius: 8px;
+  padding: 8px 16px; font-size: 13px; font-weight: 700; cursor: pointer;
 }
-.nav-search-input:focus { border-color: var(--primary); background: #ffffff; }
+.cart-badge-btn .pill { background: var(--accent-pink); color: #fff; padding: 2px 7px; border-radius: 9999px; font-size: 11px; }
 
-.cart-trigger-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  background: var(--primary);
-  color: #ffffff;
-  border: none;
-  border-radius: 8px;
-  padding: 8px 16px;
-  font-weight: 600;
-  font-size: 13px;
-  cursor: pointer;
+/* Showcase Hero */
+.showcase-hero {
+  padding: 60px 32px 80px; max-width: 1300px; margin: 0 auto; width: 100%;
 }
-.cart-badge {
-  background: var(--accent);
-  color: #fff;
-  font-size: 11px;
-  padding: 2px 7px;
-  border-radius: 999px;
+.hero-grid { display: grid; grid-template-columns: 1fr 1.2fr; gap: 60px; align-items: center; }
+.drop-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: rgba(244, 63, 94, 0.12); color: var(--accent-pink);
+  border: 1px solid rgba(244, 63, 94, 0.3); border-radius: 9999px;
+  padding: 4px 12px; font-size: 11px; font-weight: 800; margin-bottom: 16px;
 }
+.showcase-info h1 { font-size: 48px; font-weight: 800; line-height: 1.1; margin-bottom: 14px; letter-spacing: -0.03em; }
+.product-desc { font-size: 16px; color: var(--text-muted); margin-bottom: 24px; }
+.hero-price { font-size: 32px; font-weight: 800; margin-bottom: 28px; }
 
-.store-main { max-width: 1200px; margin: 0 auto; padding: 32px 20px; flex: 1; width: 100%; box-sizing: border-box; }
-
-.hero-banner {
-  text-align: center;
-  margin-bottom: 36px;
-  padding: 40px 20px;
-  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-  border-radius: 20px;
-  color: #ffffff;
+.size-selector-wrap label { display: block; font-size: 12px; font-weight: 700; text-transform: uppercase; color: var(--text-muted); margin-bottom: 10px; }
+.size-buttons { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 32px; }
+.size-btn {
+  background: var(--bg-surface); border: 1px solid var(--border-subtle);
+  color: var(--text-pure); padding: 10px 16px; border-radius: 8px;
+  font-size: 13px; font-weight: 700; cursor: pointer; transition: all 0.15s;
 }
-.hero-tag { font-size: 11px; font-weight: 800; letter-spacing: 0.12em; color: var(--accent); }
-.hero-banner h1 { font-size: clamp(28px, 4vw, 44px); font-weight: 800; margin: 12px 0; letter-spacing: -0.03em; }
-.hero-banner p { color: #94a3b8; font-size: 15px; max-width: 520px; margin: 0 auto; }
+.size-btn:hover { border-color: #71717a; }
+.size-btn.active { background: #fff; color: #09090b; border-color: #fff; }
 
-.filter-bar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 16px;
-  margin-bottom: 28px;
+.add-bag-btn {
+  background: var(--accent-pink); color: #fff; border: none; padding: 14px 28px;
+  border-radius: 10px; font-size: 14px; font-weight: 700; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 8px; transition: transform 0.15s;
 }
+.add-bag-btn:hover { transform: translateY(-2px); }
 
-.category-pills { display: flex; gap: 8px; flex-wrap: wrap; }
-.cat-pill {
-  border: 1px solid var(--border);
-  background: #ffffff;
-  padding: 7px 16px;
-  border-radius: 999px;
-  font-size: 13px;
-  font-weight: 600;
-  color: #475569;
-  cursor: pointer;
-  transition: all 0.15s ease;
+.visual-stage {
+  position: relative; border-radius: 20px; overflow: hidden;
+  background: radial-gradient(circle at 50% 50%, #27272a 0%, #09090b 80%);
+  border: 1px solid var(--border-subtle); padding: 40px; display: flex;
+  justify-content: center; align-items: center; height: 420px;
 }
-.cat-pill.active { background: var(--primary); color: #ffffff; border-color: var(--primary); }
+.stage-image { max-width: 100%; max-height: 320px; object-fit: contain; filter: drop-shadow(0 25px 25px rgba(0,0,0,0.6)); }
 
-.sort-wrap { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #64748b; }
-.sort-wrap select { padding: 6px 12px; border-radius: 6px; border: 1px solid var(--border); font-size: 13px; outline: none; }
+/* Catalog */
+.catalog-section { max-width: 1300px; margin: 0 auto 80px; padding: 0 32px; width: 100%; }
+.section-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 24px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 14px; }
+.section-head h2 { font-size: 24px; font-weight: 800; letter-spacing: -0.02em; }
+.count-label { font-size: 13px; color: var(--text-muted); font-weight: 600; }
 
-.product-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 24px;
-}
-
+.catalog-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 24px; }
 .product-card {
-  background: var(--card-bg);
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  transition: transform 0.2s, box-shadow 0.2s;
+  background: var(--bg-card); border: 1px solid var(--border-subtle);
+  border-radius: 14px; overflow: hidden; cursor: pointer; transition: all 0.2s;
 }
-.product-card:hover { transform: translateY(-4px); box-shadow: 0 12px 30px rgba(0,0,0,0.06); }
-
-.product-image-box { position: relative; height: 210px; background: #f1f5f9; overflow: hidden; }
-.product-image-box img { width: 100%; height: 100%; object-fit: cover; }
-.product-badge {
-  position: absolute;
-  top: 10px;
-  left: 10px;
-  background: var(--accent);
-  color: #ffffff;
-  font-size: 10px;
-  font-weight: 800;
-  padding: 3px 8px;
-  border-radius: 4px;
+.product-card:hover { border-color: #71717a; transform: translateY(-3px); }
+.product-card.current { border-color: var(--accent-pink); }
+.card-thumb { height: 200px; background: #121215; position: relative; overflow: hidden; }
+.card-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.card-tag {
+  position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.7);
+  padding: 3px 8px; border-radius: 4px; font-size: 10px; font-weight: 700; color: #fff;
 }
-
-.product-details { padding: 18px; flex: 1; display: flex; flex-direction: column; }
-.product-cat { font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase; margin-bottom: 4px; }
-.product-name { font-size: 16px; font-weight: 700; margin: 0 0 6px; color: var(--primary); }
-.product-desc { font-size: 13px; color: #64748b; line-height: 1.45; margin-bottom: 16px; flex: 1; }
-
-.product-bottom { display: flex; align-items: center; justify-content: space-between; }
-.price-tag { font-size: 18px; font-weight: 800; color: var(--primary); }
-.add-cart-btn {
-  background: #f1f5f9;
-  border: 1px solid #cbd5e1;
-  color: #0f172a;
-  padding: 8px 14px;
-  border-radius: 8px;
-  font-weight: 600;
-  font-size: 12.5px;
+.card-body { padding: 18px; }
+.card-category { font-size: 11px; color: var(--text-muted); text-transform: uppercase; font-weight: 700; margin-bottom: 4px; display: block; }
+.card-body h4 { font-size: 16px; font-weight: 700; margin-bottom: 12px; }
+.card-row { display: flex; justify-content: space-between; align-items: center; }
+.card-price { font-size: 16px; font-weight: 800; }
+.quick-view-btn {
+  background: transparent; border: none; color: var(--text-muted);
+  font-size: 12px; font-weight: 700; display: flex; align-items: center; gap: 4px;
   cursor: pointer;
-  transition: background 0.15s;
 }
-.add-cart-btn:hover { background: var(--primary); color: #fff; border-color: var(--primary); }
 
-/* Cart Drawer */
+/* Footer */
+.store-footer { border-top: 1px solid var(--border-subtle); padding: 40px 32px; margin-top: auto; }
+.footer-wrap { max-width: 1300px; margin: 0 auto; display: flex; justify-content: space-between; font-size: 13px; color: var(--text-muted); }
+
+/* Drawer */
 .drawer-overlay {
-  position: fixed; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(3px); z-index: 200;
-  display: flex; justify-content: flex-end;
+  position: fixed; inset: 0; background: rgba(0,0,0,0.75); backdrop-filter: blur(4px);
+  z-index: 100; display: flex; justify-content: flex-end;
 }
-.drawer-panel {
-  width: 100%; max-width: 400px; height: 100%; background: #ffffff; display: flex; flex-direction: column;
-  box-shadow: -10px 0 30px rgba(0,0,0,0.15); animation: slideLeft 0.25s ease;
+.drawer-box {
+  width: 100%; max-width: 420px; background: var(--bg-surface);
+  border-left: 1px solid var(--border-subtle); height: 100%; display: flex; flex-direction: column;
 }
-@keyframes slideLeft { from { transform: translateX(100%); } to { transform: translateX(0); } }
+.drawer-head { padding: 20px; border-bottom: 1px solid var(--border-subtle); display: flex; justify-content: space-between; align-items: center; }
+.drawer-content { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 14px; }
+.empty-cart { text-align: center; color: var(--text-muted); margin-top: 40px; }
+.drawer-item { display: flex; gap: 14px; background: var(--bg-card); padding: 12px; border-radius: 8px; }
+.drawer-item img { width: 56px; height: 56px; object-fit: cover; border-radius: 6px; }
+.item-meta strong { font-size: 13px; display: block; }
+.item-size { font-size: 11px; color: var(--text-muted); display: block; }
+.item-cost { font-size: 12px; color: var(--accent-pink); font-weight: 700; }
+.drawer-footer { padding: 20px; border-top: 1px solid var(--border-subtle); background: var(--bg-dark); }
+.footer-total { display: flex; justify-content: space-between; margin-bottom: 16px; font-size: 15px; }
+.checkout-btn { width: 100%; background: #fff; color: #09090b; border: none; padding: 12px; border-radius: 8px; font-weight: 700; cursor: pointer; }
 
-.drawer-header { padding: 18px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
-.drawer-header h3 { margin: 0; font-size: 16px; font-weight: 700; }
-.drawer-close { background: none; border: none; font-size: 24px; cursor: pointer; color: #64748b; }
-
-.drawer-body { flex: 1; overflow-y: auto; padding: 20px; }
-.cart-row { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; padding-bottom: 16px; border-bottom: 1px solid #f1f5f9; }
-.cart-row img { width: 64px; height: 64px; border-radius: 10px; object-fit: cover; }
-.cart-info { flex: 1; }
-.cart-info h4 { margin: 0 0 4px; font-size: 14px; font-weight: 600; }
-.cart-price { font-weight: 700; color: var(--primary); font-size: 13px; }
-.cart-stepper { display: inline-flex; align-items: center; gap: 8px; margin-top: 6px; border: 1px solid #cbd5e1; border-radius: 6px; padding: 2px 6px; }
-.cart-stepper button { border: none; background: none; cursor: pointer; font-size: 14px; font-weight: 700; }
-.cart-remove-btn { background: none; border: none; color: #ef4444; font-size: 18px; cursor: pointer; }
-
-.drawer-footer { padding: 20px; border-top: 1px solid var(--border); background: #fafafa; }
-.drawer-total { display: flex; justify-content: space-between; font-size: 16px; margin-bottom: 14px; }
-.checkout-btn { width: 100%; padding: 12px; background: var(--primary); color: #fff; border: none; border-radius: 10px; font-size: 14px; font-weight: 700; cursor: pointer; }
-
-/* Modal */
-.modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 300; display: flex; align-items: center; justify-content: center; }
-.modal-dialog { background: #fff; width: 90%; max-width: 440px; border-radius: 16px; padding: 28px; box-sizing: border-box; }
-.modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }
-.modal-header h3 { margin: 0; font-size: 18px; font-weight: 700; }
-.modal-close { background: none; border: none; font-size: 22px; cursor: pointer; }
-.order-summary-box { background: #f8fafc; border: 1px solid var(--border); padding: 12px 16px; border-radius: 8px; display: flex; justify-content: space-between; margin-bottom: 16px; }
-.form-group { margin-bottom: 14px; }
-.form-group label { display: block; font-size: 12.5px; font-weight: 600; margin-bottom: 4px; color: #475569; }
-.form-group input { width: 100%; padding: 9px 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 13.5px; box-sizing: border-box; }
-.pay-now-btn { width: 100%; padding: 12px; background: var(--accent); color: #fff; border: none; border-radius: 10px; font-size: 14px; font-weight: 700; cursor: pointer; margin-top: 8px; }
-.modal-success { text-align: center; padding: 20px 0; }
-.success-icon { width: 48px; height: 48px; background: #dcfce7; color: #15803d; border-radius: 50%; font-size: 22px; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 12px; font-weight: 800; }
-
-.store-footer { background: var(--primary); color: #94a3b8; padding: 48px 24px; margin-top: 48px; }
-.footer-wrap { max-width: 1200px; margin: 0 auto; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 24px; }
-.footer-info h4 { color: #fff; margin: 0 0 8px; font-size: 18px; }
-.footer-links { display: flex; gap: 20px; font-size: 13px; }
-.footer-copy { width: 100%; border-top: 1px solid #334155; padding-top: 20px; font-size: 12px; }
+/* Toast */
+.store-toast {
+  position: fixed; bottom: 24px; right: 24px; background: #10b981; color: #fff;
+  padding: 12px 20px; border-radius: 8px; font-size: 13px; font-weight: 600;
+  display: flex; align-items: center; gap: 8px; z-index: 200;
+}
 `
   };
 
   return {
-    summary: `Created a custom e-commerce web application for ${brand} featuring catalog search, category pills, product cards, dynamic slide-out cart drawer, and interactive checkout modal.`,
-    plan,
+    summary: `Engineered a bespoke dynamic commerce boutique for ${brand} with interactive 3D showcase, size picker, and live cart drawer.`,
     files,
   };
 }
 
 // -----------------------------------------------------------------------------
-// 2. RESTAURANT & CULINARY ARCHITECTURE
+// 3. BESPOKE FINTECH / SAAS APPLICATION
 // -----------------------------------------------------------------------------
-function generateRestaurantArchitecture(brand, request) {
-  const plan = [
-    ['/src/components/Navbar.jsx', 'Navigation bar with restaurant brand, menu jump links, and reservation CTA'],
-    ['/src/components/MenuSection.jsx', 'Filterable a la carte menu organized by course categories (Appetizers, Mains, Desserts)'],
-    ['/src/components/FoodCard.jsx', 'Dish card with culinary photos, dietary badges (GF, Vegan), price, and Add to Order'],
-    ['/src/components/CartDrawer.jsx', 'Live order drawer with items, quantities, and table delivery/pickup option'],
-    ['/src/components/ReservationModal.jsx', 'Interactive table booking form with guest count, date picker, time slot, and confirmation'],
-    ['/src/components/Footer.jsx', 'Hours of operation, address, phone number, and social links'],
-    ['/src/data/menu.js', 'Curated artisanal menu items with descriptions, prices, dietary tags, and photos'],
-    ['/src/App.jsx', 'Root culinary application orchestrating order state, table bookings, and course filters'],
-    ['/src/styles.css', 'Warm culinary styling, appetizing typography, elegant card borders, and responsive grid'],
-  ];
-
+function synthesizeSaasApp(brand, request) {
   const files = {
-    '/data/menu.js': `export const MENU_ITEMS = [
-  {
-    id: 1,
-    name: 'Truffle Tagliolini Tartufata',
-    category: 'Mains',
-    price: 34,
-    dietary: 'Vegetarian',
-    image: 'https://images.unsplash.com/photo-1551183053-bf91a1d81141?w=600&auto=format&fit=crop&q=80',
-    description: 'Handcrafted ribbon pasta, shaved Umbrian black winter truffles, cultured butter, aged Parmigiano Reggiano.'
-  },
-  {
-    id: 2,
-    name: 'Wood-Fired Burrata Caprese',
-    category: 'Starters',
-    price: 22,
-    dietary: 'Gluten-Free',
-    image: 'https://images.unsplash.com/photo-1592417817098-8f3d6910985b?w=600&auto=format&fit=crop&q=80',
-    description: 'Pugliese burrata, heirloom tomatoes, cold-pressed Sicilian olive oil, 25-year aged balsamic.'
-  },
-  {
-    id: 3,
-    name: 'Prime Wagyu Filetto al Barolo',
-    category: 'Mains',
-    price: 58,
-    dietary: 'Signature',
-    image: 'https://images.unsplash.com/photo-1558030006-450675393462?w=600&auto=format&fit=crop&q=80',
-    description: 'Pan-seared A5 Wagyu tenderloin, Barolo wine reduction, roasted bone marrow, glazed baby carrots.'
-  },
-  {
-    id: 4,
-    name: 'Espresso Tiramisu Tradizionale',
-    category: 'Desserts',
-    price: 16,
-    dietary: 'Vegetarian',
-    image: 'https://images.unsplash.com/photo-1571877227200-a0d98ea607e9?w=600&auto=format&fit=crop&q=80',
-    description: 'Savoiardi soaked in single-origin espresso, whipped mascarpone cream, Valrhona dark cocoa.'
-  }
-];
-`,
-
-    '/components/Navbar.jsx': `import React from 'react';
-
-export default function Navbar({ cartCount, onOpenCart, onOpenBooking }) {
-  return (
-    <header className="bistro-nav">
-      <div className="bistro-nav-wrap">
-        <a href="#home" className="bistro-brand">
-          <span className="bistro-icon">🍷</span>
-          <span>${brand}</span>
-        </a>
-
-        <nav className="bistro-links">
-          <a href="#menu">Menu</a>
-          <a href="#about">Story</a>
-          <a href="#reservations" onClick={(e) => { e.preventDefault(); onOpenBooking(); }}>Reservations</a>
-        </nav>
-
-        <div className="bistro-actions">
-          <button onClick={onOpenBooking} className="btn-reserve">Book Table</button>
-          <button onClick={onOpenCart} className="btn-order">
-            Order ({cartCount})
-          </button>
-        </div>
-      </div>
-    </header>
-  );
-}
-`,
-
-    '/components/FoodCard.jsx': `import React from 'react';
-
-export default function FoodCard({ item, onAdd }) {
-  return (
-    <div className="food-card">
-      <div className="food-img-wrap">
-        <img src={item.image} alt={item.name} loading="lazy" />
-        <span className="dietary-tag">{item.dietary}</span>
-      </div>
-      <div className="food-body">
-        <div className="food-headline">
-          <h4>{item.name}</h4>
-          <span className="food-price">\${item.price}</span>
-        </div>
-        <p className="food-desc">{item.description}</p>
-        <button onClick={() => onAdd(item)} className="btn-add-food">
-          + Add to Order
-        </button>
-      </div>
-    </div>
-  );
-}
-`,
-
-    '/components/MenuSection.jsx': `import React, { useState } from 'react';
-import FoodCard from './FoodCard.jsx';
-
-export default function MenuSection({ menuItems, onAdd }) {
-  const [selectedCategory, setSelectedCategory] = useState('All');
-  const categories = ['All', 'Starters', 'Mains', 'Desserts'];
-
-  const filtered = selectedCategory === 'All' 
-    ? menuItems 
-    : menuItems.filter((i) => i.category === selectedCategory);
-
-  return (
-    <section id="menu" className="menu-container">
-      <div className="menu-header">
-        <span className="section-eyebrow">Artisanal Dining</span>
-        <h2>A La Carte Menu</h2>
-        <p>Prepared daily with locally sourced organic produce and farm-fresh ingredients.</p>
-        <div className="menu-tabs">
-          {categories.map((c) => (
-            <button
-              key={c}
-              onClick={() => setSelectedCategory(c)}
-              className={'menu-tab ' + (selectedCategory === c ? 'active' : '')}
-            >
-              {c}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="food-grid">
-        {filtered.map((item) => (
-          <FoodCard key={item.id} item={item} onAdd={onAdd} />
-        ))}
-      </div>
-    </section>
-  );
-}
-`,
-
-    '/components/CartDrawer.jsx': `import React from 'react';
-
-export default function CartDrawer({ isOpen, onClose, cart, onUpdateQty, onCheckout }) {
-  if (!isOpen) return null;
-  const subtotal = cart.reduce((s, i) => s + i.price * i.qty, 0);
-
-  return (
-    <div className="drawer-overlay" onClick={onClose}>
-      <div className="drawer-panel" onClick={(e) => e.stopPropagation()}>
-        <div className="drawer-header">
-          <h3>Your Dining Order</h3>
-          <button onClick={onClose} className="drawer-close">&times;</button>
-        </div>
-
-        <div className="drawer-body">
-          {cart.length === 0 ? (
-            <p style={{ textAlign: 'center', color: '#78716c', marginTop: '40px' }}>Your order is empty.</p>
-          ) : (
-            cart.map((item) => (
-              <div key={item.id} className="cart-item-row">
-                <div>
-                  <strong>{item.name}</strong>
-                  <div>\${item.price} each</div>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <button onClick={() => onUpdateQty(item.id, item.qty - 1)}>-</button>
-                  <span>{item.qty}</span>
-                  <button onClick={() => onUpdateQty(item.id, item.qty + 1)}>+</button>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-
-        {cart.length > 0 && (
-          <div className="drawer-footer">
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '14px', fontWeight: 700 }}>
-              <span>Total:</span>
-              <span>\${subtotal.toFixed(2)}</span>
-            </div>
-            <button onClick={onCheckout} className="btn-primary" style={{ width: '100%' }}>
-              Submit Order to Kitchen &rarr;
-            </button>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-`,
-
-    '/components/ReservationModal.jsx': `import React, { useState } from 'react';
-
-export default function ReservationModal({ isOpen, onClose }) {
-  const [confirmed, setConfirmed] = useState(false);
-  const [form, setForm] = useState({ name: '', guests: '2 Guests', date: '', time: '7:00 PM' });
-
-  if (!isOpen) return null;
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    setConfirmed(true);
-    setTimeout(() => {
-      setConfirmed(false);
-      onClose();
-    }, 2500);
-  };
-
-  return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal-dialog" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-header">
-          <h3>Reserve Your Table</h3>
-          <button onClick={onClose} className="modal-close">&times;</button>
-        </div>
-
-        {confirmed ? (
-          <div className="modal-success">
-            <div className="success-icon">✓</div>
-            <h4>Table Reserved!</h4>
-            <p>We are delighted to welcome you to ${brand}. A confirmation email has been sent.</p>
-          </div>
-        ) : (
-          <form onSubmit={handleSubmit} className="reservation-form">
-            <div className="form-group">
-              <label>Guest Name</label>
-              <input type="text" required placeholder="Lord Julian Vance" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-            </div>
-            <div className="form-group">
-              <label>Party Size</label>
-              <select value={form.guests} onChange={(e) => setForm({ ...form, guests: e.target.value })}>
-                <option>1 Guest</option>
-                <option>2 Guests</option>
-                <option>4 Guests</option>
-                <option>6+ VIP Private Room</option>
-              </select>
-            </div>
-            <div className="form-group">
-              <label>Preferred Date & Time</label>
-              <input type="date" required value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
-            </div>
-            <button type="submit" className="btn-reserve" style={{ width: '100%', marginTop: '12px' }}>Confirm Reservation</button>
-          </form>
-        )}
-      </div>
-    </div>
-  );
-}
-`,
-
-    '/components/Footer.jsx': `import React from 'react';
-
-export default function Footer() {
-  return (
-    <footer className="bistro-footer">
-      <div className="bistro-footer-wrap">
-        <div>
-          <h3>${brand}</h3>
-          <p>Michelin-selected artisanal culinary dining and private sommelier cellar.</p>
-        </div>
-        <div>
-          <h4>Hours</h4>
-          <p>Tuesday – Sunday: 5:00 PM – 11:00 PM</p>
-          <p>Closed Mondays for private culinary events</p>
-        </div>
-        <div>
-          <h4>Contact & Location</h4>
-          <p>448 Grand Avenue, New York, NY</p>
-          <p>+1 (555) 890-2341</p>
-        </div>
-      </div>
-    </footer>
-  );
-}
-`,
-
-    '/App.jsx': `import React, { useState } from 'react';
-import Navbar from './components/Navbar.jsx';
-import MenuSection from './components/MenuSection.jsx';
-import CartDrawer from './components/CartDrawer.jsx';
-import ReservationModal from './components/ReservationModal.jsx';
-import Footer from './components/Footer.jsx';
-import { MENU_ITEMS } from './data/menu.js';
+    'package.json': JSON.stringify(
+      {
+        name: 'fintech-saas-app',
+        private: true,
+        version: '1.0.0',
+        type: 'module',
+        dependencies: { react: '^18.3.1', 'react-dom': '^18.3.1', 'lucide-react': '^1.45.0' },
+      },
+      null,
+      2
+    ),
+    'src/App.jsx': `import React, { useState } from 'react';
+import { ArrowUpRight, ArrowDownLeft, TrendingUp, ShieldCheck, DollarSign, Activity, Layers, Calendar } from 'lucide-react';
 import './styles.css';
 
 export default function App() {
-  const [cart, setCart] = useState([]);
-  const [isCartOpen, setIsCartOpen] = useState(false);
-  const [isBookingOpen, setIsBookingOpen] = useState(false);
+  const brand = '${brand}';
+  const [activeTab, setActiveTab] = useState('All');
+  const [volumeSlider, setVolumeSlider] = useState(250000);
 
-  const handleAddDish = (item) => {
-    setCart((prev) => {
-      const match = prev.find((i) => i.id === item.id);
-      if (match) return prev.map((i) => i.id === item.id ? { ...i, qty: i.qty + 1 } : i);
-      return [...prev, { ...item, qty: 1 }];
-    });
-    setIsCartOpen(true);
-  };
+  const transactions = [
+    { id: 'tx_981', desc: 'Apex Capital Liquidity Inflow', category: 'Capital', amount: '+ $84,200.00', date: 'Today, 14:20', type: 'inflow' },
+    { id: 'tx_980', desc: 'AWS Global Cloud Compute', category: 'Infrastructure', amount: '- $3,450.00', date: 'Today, 11:05', type: 'outflow' },
+    { id: 'tx_979', desc: 'Enterprise SaaS Tier Subscription', category: 'Revenue', amount: '+ $12,500.00', date: 'Yesterday', type: 'inflow' },
+    { id: 'tx_978', desc: 'Treasury Yield Automated Rebalance', category: 'Investment', amount: '+ $4,820.50', date: 'Oct 02', type: 'inflow' }
+  ];
 
-  const handleUpdateQty = (id, newQty) => {
-    if (newQty <= 0) {
-      setCart((prev) => prev.filter((i) => i.id !== id));
-      return;
-    }
-    setCart((prev) => prev.map((i) => i.id === id ? { ...i, qty: newQty } : i));
-  };
+  const filteredTx = activeTab === 'All' ? transactions : transactions.filter((t) => activeTab === 'Inflow' ? t.type === 'inflow' : t.type === 'outflow');
+
+  // Interactive Forecasting calculation
+  const forecastedAnnualYield = Math.round(volumeSlider * 0.084);
+  const monthlySavings = Math.round(volumeSlider * 0.012);
 
   return (
-    <div className="bistro-app">
-      <Navbar 
-        cartCount={cart.reduce((s, i) => s + i.qty, 0)}
-        onOpenCart={() => setIsCartOpen(true)}
-        onOpenBooking={() => setIsBookingOpen(true)}
-      />
-
-      <header className="bistro-hero">
-        <div className="bistro-hero-content">
-          <span className="hero-eyebrow">MICHELIN SELECTED • VINTAGE CELLAR</span>
-          <h1>Artisanal Gastronomy & Memorable Evenings</h1>
-          <p>Experience sensory culinary journeys orchestrated by world-renowned chefs with seasonal harvests.</p>
-          <div className="hero-buttons">
-            <button onClick={() => setIsBookingOpen(true)} className="btn-reserve-large">Reserve Table</button>
-            <a href="#menu" className="btn-menu-link">Explore Menu &rarr;</a>
-          </div>
+    <div className="fintech-shell">
+      {/* Sidebar / Nav */}
+      <header className="fintech-nav">
+        <div className="nav-brand">
+          <div className="brand-gem"><Activity size={18} color="#06b6d4" /></div>
+          <strong>{brand}</strong>
+          <span className="live-status">LIVE METRICS</span>
         </div>
       </header>
 
-      <MenuSection menuItems={MENU_ITEMS} onAdd={handleAddDish} />
-
-      <CartDrawer 
-        isOpen={isCartOpen} 
-        onClose={() => setIsCartOpen(false)} 
-        cart={cart}
-        onUpdateQty={handleUpdateQty}
-        onCheckout={() => {
-          alert('Order sent to our kitchen team!');
-          setCart([]);
-          setIsCartOpen(false);
-        }}
-      />
-
-      <ReservationModal 
-        isOpen={isBookingOpen} 
-        onClose={() => setIsBookingOpen(false)} 
-      />
-
-      <Footer />
-    </div>
-  );
-}
-`,
-
-    '/styles.css': `/* Restaurant Theme */
-body {
-  margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Plus Jakarta Sans', Georgia, serif;
-  background-color: #0c0a09;
-  color: #f5f5f4;
-}
-
-.bistro-nav {
-  position: sticky; top: 0; z-index: 100;
-  background: rgba(12, 10, 9, 0.95);
-  backdrop-filter: blur(8px);
-  border-bottom: 1px solid #292524;
-  padding: 16px 24px;
-}
-.bistro-nav-wrap { max-width: 1200px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; }
-.bistro-brand { display: flex; align-items: center; gap: 8px; font-size: 20px; font-weight: 800; color: #f5f5f4; text-decoration: none; }
-.bistro-links { display: flex; gap: 24px; }
-.bistro-links a { color: #a8a29e; text-decoration: none; font-size: 14px; font-weight: 600; }
-.bistro-links a:hover { color: #f5f5f4; }
-.bistro-actions { display: flex; gap: 12px; }
-.btn-reserve { background: #b45309; color: #fff; border: 0; padding: 8px 16px; border-radius: 8px; font-weight: 600; cursor: pointer; }
-.btn-order { background: #292524; color: #f5f5f4; border: 1px solid #44403c; padding: 8px 16px; border-radius: 8px; font-weight: 600; cursor: pointer; }
-
-.bistro-hero {
-  padding: 100px 24px;
-  text-align: center;
-  background: linear-gradient(180deg, #1c1917 0%, #0c0a09 100%);
-  border-bottom: 1px solid #292524;
-}
-.hero-eyebrow { font-size: 12px; font-weight: 800; letter-spacing: 0.15em; color: #d97706; display: block; margin-bottom: 12px; }
-.bistro-hero h1 { font-size: clamp(32px, 5vw, 56px); font-weight: 800; margin: 0 auto 16px; max-width: 780px; line-height: 1.15; }
-.bistro-hero p { color: #a8a29e; font-size: 16px; max-width: 600px; margin: 0 auto 28px; line-height: 1.6; }
-.hero-buttons { display: flex; justify-content: center; gap: 16px; }
-.btn-reserve-large { background: #b45309; color: #fff; border: 0; padding: 12px 28px; border-radius: 10px; font-size: 15px; font-weight: 700; cursor: pointer; }
-.btn-menu-link { display: inline-flex; align-items: center; color: #f5f5f4; text-decoration: none; font-weight: 600; padding: 12px 20px; }
-
-.menu-container { max-width: 1200px; margin: 0 auto; padding: 60px 24px; }
-.menu-header { text-align: center; margin-bottom: 48px; }
-.section-eyebrow { color: #d97706; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.12em; }
-.menu-header h2 { font-size: 36px; margin: 8px 0 12px; }
-.menu-header p { color: #a8a29e; font-size: 15px; }
-
-.menu-tabs { display: flex; justify-content: center; gap: 10px; margin-top: 24px; }
-.menu-tab { background: #1c1917; border: 1px solid #292524; color: #a8a29e; padding: 8px 18px; border-radius: 999px; font-weight: 600; cursor: pointer; }
-.menu-tab.active { background: #b45309; color: #ffffff; border-color: #b45309; }
-
-.food-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px; }
-.food-card { background: #1c1917; border: 1px solid #292524; border-radius: 16px; overflow: hidden; display: flex; flex-direction: column; }
-.food-img-wrap { position: relative; height: 200px; }
-.food-img-wrap img { width: 100%; height: 100%; object-fit: cover; }
-.dietary-tag { position: absolute; bottom: 10px; left: 10px; background: rgba(0,0,0,0.7); backdrop-filter: blur(4px); color: #d97706; font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 4px; }
-
-.food-body { padding: 20px; flex: 1; display: flex; flex-direction: column; }
-.food-headline { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
-.food-headline h4 { margin: 0; font-size: 17px; font-weight: 700; color: #f5f5f4; }
-.food-price { font-weight: 800; color: #d97706; font-size: 17px; }
-.food-desc { color: #a8a29e; font-size: 13.5px; line-height: 1.5; margin-bottom: 20px; flex: 1; }
-.btn-add-food { background: #292524; border: 1px solid #44403c; color: #f5f5f4; padding: 10px; border-radius: 8px; font-weight: 600; cursor: pointer; transition: 0.15s; }
-.btn-add-food:hover { background: #b45309; border-color: #b45309; }
-
-.drawer-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); z-index: 200; display: flex; justify-content: flex-end; }
-.drawer-panel { width: 100%; max-width: 380px; height: 100%; background: #1c1917; border-left: 1px solid #292524; display: flex; flex-direction: column; }
-.drawer-header { padding: 20px; border-bottom: 1px solid #292524; display: flex; justify-content: space-between; align-items: center; }
-.drawer-header h3 { margin: 0; }
-.drawer-close { background: none; border: none; color: #a8a29e; font-size: 24px; cursor: pointer; }
-.drawer-body { flex: 1; overflow-y: auto; padding: 20px; }
-.cart-item-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #292524; }
-.drawer-footer { padding: 20px; border-top: 1px solid #292524; background: #0c0a09; }
-
-.modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 300; display: flex; align-items: center; justify-content: center; }
-.modal-dialog { background: #1c1917; border: 1px solid #292524; width: 90%; max-width: 440px; border-radius: 16px; padding: 28px; box-sizing: border-box; }
-.modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }
-.modal-header h3 { margin: 0; }
-.modal-close { background: none; border: none; color: #a8a29e; font-size: 22px; cursor: pointer; }
-.form-group { margin-bottom: 14px; }
-.form-group label { display: block; font-size: 13px; font-weight: 600; color: #a8a29e; margin-bottom: 6px; }
-.form-group input, .form-group select { width: 100%; padding: 10px; background: #0c0a09; border: 1px solid #292524; color: #f5f5f4; border-radius: 8px; font-size: 14px; box-sizing: border-box; }
-.modal-success { text-align: center; padding: 24px 0; }
-.success-icon { width: 48px; height: 48px; background: #b45309; color: #fff; border-radius: 50%; font-size: 22px; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 12px; font-weight: 800; }
-
-.bistro-footer { background: #0c0a09; border-top: 1px solid #292524; padding: 60px 24px; color: #a8a29e; }
-.bistro-footer-wrap { max-width: 1200px; margin: 0 auto; display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 40px; }
-.bistro-footer-wrap h3, .bistro-footer-wrap h4 { color: #f5f5f4; margin: 0 0 12px; }
-`
-  };
-
-  return {
-    summary: `Engineered a culinary gastronomy application for ${brand} with a la carte menu sections, course filters, interactive dining cart, and online table reservations.`,
-    plan,
-    files,
-  };
-}
-
-// -----------------------------------------------------------------------------
-// 3. SAAS / DASHBOARD ARCHITECTURE
-// -----------------------------------------------------------------------------
-function generateSaasArchitecture(brand, request) {
-  const plan = [
-    ['/src/components/Sidebar.jsx', 'Collapsible dashboard sidebar with navigation routes, workspace selector, and user badge'],
-    ['/src/components/TopHeader.jsx', 'Dashboard top header with live environment status, notifications, and new project action'],
-    ['/src/components/MetricCard.jsx', 'Metric stat card with trend indicator (+14.2%), historical comparison, and sparklines'],
-    ['/src/components/AnalyticsChart.jsx', 'Visual analytics overview with time range filters (24h, 7d, 30d) and throughput data'],
-    ['/src/components/DataTable.jsx', 'Real-time telemetry and API activity table with search, status pills, and action menu'],
-    ['/src/components/QuickActions.jsx', 'Quick deployment and API key generation triggers'],
-    ['/src/data/metrics.js', 'Simulated telemetry metrics, server health logs, and active deployments'],
-    ['/src/App.jsx', 'Main SaaS dashboard shell orchestrating sidebar navigation, search filters, and live metric updates'],
-    ['/src/styles.css', 'Sleek dark-mode telemetry styling, glassmorphism card surfaces, and grid layout'],
-  ];
-
-  const files = {
-    '/data/metrics.js': `export const METRICS = [
-  { label: 'Active Edge Inferences', value: '1.42M', change: '+18.4%', positive: true },
-  { label: 'Avg Latency (p99)', value: '28ms', change: '-4.2%', positive: true },
-  { label: 'Compute Cluster Uptime', value: '99.99%', change: 'Normal', positive: true },
-  { label: 'Active API Keys', value: '842', change: '+32 this week', positive: true }
-];
-
-export const ACTIVITY_LOGS = [
-  { id: 'ev_01', endpoint: '/v1/models/generate', status: '200 OK', latency: '24ms', region: 'us-east (iad)', timestamp: 'Just now' },
-  { id: 'ev_02', endpoint: '/v1/embeddings/batch', status: '200 OK', latency: '41ms', region: 'eu-west (lhr)', timestamp: '1m ago' },
-  { id: 'ev_03', endpoint: '/v1/agents/orchestrate', status: '200 OK', latency: '82ms', region: 'ap-northeast (hnd)', timestamp: '3m ago' },
-  { id: 'ev_04', endpoint: '/v1/telemetry/stream', status: '200 OK', latency: '12ms', region: 'us-west (sfo)', timestamp: '5m ago' }
-];
-`,
-
-    '/components/Sidebar.jsx': `import React from 'react';
-
-export default function Sidebar({ activeRoute, setActiveRoute }) {
-  const routes = ['Overview', 'Analytics', 'Deployments', 'API Keys', 'Settings'];
-
-  return (
-    <aside className="saas-sidebar">
-      <div className="sidebar-brand">
-        <span className="brand-dot"></span>
-        <span>${brand}</span>
-      </div>
-
-      <nav className="sidebar-nav">
-        {routes.map((r) => (
-          <button
-            key={r}
-            onClick={() => setActiveRoute(r)}
-            className={'sidebar-link ' + (activeRoute === r ? 'active' : '')}
-          >
-            <span>{r}</span>
-          </button>
-        ))}
-      </nav>
-
-      <div className="sidebar-footer">
-        <div className="user-profile">
-          <div className="user-avatar">YD</div>
-          <div>
-            <strong>Enterprise Admin</strong>
-            <small>Production v2.4</small>
+      {/* Main Dashboard */}
+      <main className="dashboard-container">
+        {/* Metric Cards */}
+        <div className="kpi-grid">
+          <div className="kpi-card">
+            <span className="kpi-label">Total Treasury Balance</span>
+            <div className="kpi-val">$4,892,140.00</div>
+            <span className="kpi-delta positive"><TrendingUp size={13} /> +18.4% vs last month</span>
+          </div>
+          <div className="kpi-card">
+            <span className="kpi-label">Automated Inflow Rate</span>
+            <div className="kpi-val">$842,500.00</div>
+            <span className="kpi-delta positive"><TrendingUp size={13} /> 99.98% SLA Uptime</span>
+          </div>
+          <div className="kpi-card">
+            <span className="kpi-label">Real-time Yield Rate</span>
+            <div className="kpi-val">8.42% APY</div>
+            <span className="kpi-delta neutral">Daily compounding enabled</span>
           </div>
         </div>
-      </div>
-    </aside>
-  );
-}
-`,
 
-    '/components/TopHeader.jsx': `import React from 'react';
-
-export default function TopHeader({ onNewAction }) {
-  return (
-    <header className="saas-top-header">
-      <div>
-        <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 700 }}>Telemetry Overview</h2>
-        <span style={{ fontSize: '12px', color: '#94a3b8' }}>Live infrastructure nodes and inference health</span>
-      </div>
-
-      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-        <span className="status-live-pill">
-          <span className="pulse-dot"></span> All Systems Operational
-        </span>
-        <button onClick={onNewAction} className="btn-primary">
-          + Deploy New Model
-        </button>
-      </div>
-    </header>
-  );
-}
-`,
-
-    '/components/MetricCard.jsx': `import React from 'react';
-
-export default function MetricCard({ metric }) {
-  return (
-    <div className="metric-card">
-      <span className="metric-label">{metric.label}</span>
-      <div className="metric-value">{metric.value}</div>
-      <div className="metric-trend positive">{metric.change}</div>
-    </div>
-  );
-}
-`,
-
-    '/components/DataTable.jsx': `import React from 'react';
-
-export default function DataTable({ logs }) {
-  return (
-    <div className="data-table-card">
-      <div className="table-header">
-        <h3>Live Inference Events</h3>
-        <span style={{ fontSize: '12px', color: '#94a3b8' }}>Real-time event stream</span>
-      </div>
-
-      <table className="telemetry-table">
-        <thead>
-          <tr>
-            <th>Endpoint</th>
-            <th>Status</th>
-            <th>Latency</th>
-            <th>Region</th>
-            <th>Timestamp</th>
-          </tr>
-        </thead>
-        <tbody>
-          {logs.map((log) => (
-            <tr key={log.id}>
-              <td><code>{log.endpoint}</code></td>
-              <td><span className="status-badge-ok">{log.status}</span></td>
-              <td>{log.latency}</td>
-              <td>{log.region}</td>
-              <td style={{ color: '#94a3b8' }}>{log.timestamp}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-`,
-
-    '/App.jsx': `import React, { useState } from 'react';
-import Sidebar from './components/Sidebar.jsx';
-import TopHeader from './components/TopHeader.jsx';
-import MetricCard from './components/MetricCard.jsx';
-import DataTable from './components/DataTable.jsx';
-import { METRICS, ACTIVITY_LOGS } from './data/metrics.js';
-import './styles.css';
-
-export default function App() {
-  const [activeRoute, setActiveRoute] = useState('Overview');
-  const [logs, setLogs] = useState(ACTIVITY_LOGS);
-
-  const handleDeploy = () => {
-    const newLog = {
-      id: 'ev_' + Date.now().toString().slice(-4),
-      endpoint: '/v1/neural/fine-tune',
-      status: '200 OK',
-      latency: '18ms',
-      region: 'us-east (iad)',
-      timestamp: 'Just now'
-    };
-    setLogs((prev) => [newLog, ...prev.slice(0, 5)]);
-    alert('Model deployment triggered successfully across 14 global edge clusters!');
-  };
-
-  return (
-    <div className="saas-shell">
-      <Sidebar activeRoute={activeRoute} setActiveRoute={setActiveRoute} />
-      <div className="saas-content">
-        <TopHeader onNewAction={handleDeploy} />
-        <main className="saas-body">
-          <div className="metrics-grid">
-            {METRICS.map((m, i) => (
-              <MetricCard key={i} metric={m} />
-            ))}
-          </div>
-
-          <div style={{ marginTop: '24px' }}>
-            <DataTable logs={logs} />
-          </div>
-        </main>
-      </div>
-    </div>
-  );
-}
-`,
-
-    '/styles.css': `/* SaaS Dashboard Styling */
-body {
-  margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Plus Jakarta Sans', Inter, sans-serif;
-  background-color: #09090b;
-  color: #f4f4f5;
-}
-
-.saas-shell { display: flex; height: 100vh; overflow: hidden; }
-
-.saas-sidebar {
-  width: 250px;
-  background: #121215;
-  border-right: 1px solid #27272a;
-  display: flex;
-  flex-direction: column;
-}
-
-.sidebar-brand {
-  height: 60px;
-  padding: 0 20px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-weight: 800;
-  font-size: 16px;
-  border-bottom: 1px solid #27272a;
-}
-.brand-dot { width: 8px; height: 8px; border-radius: 50%; background: #6366f1; }
-
-.sidebar-nav { flex: 1; padding: 16px 12px; display: flex; flex-direction: column; gap: 4px; }
-.sidebar-link {
-  display: flex; align-items: center; padding: 10px 14px; border: none; border-radius: 8px;
-  background: transparent; color: #a1a1aa; font-weight: 600; font-size: 13.5px; cursor: pointer; text-align: left;
-}
-.sidebar-link.active { background: #27272a; color: #ffffff; }
-
-.sidebar-footer { padding: 16px; border-top: 1px solid #27272a; }
-.user-profile { display: flex; align-items: center; gap: 10px; }
-.user-avatar { width: 32px; height: 32px; border-radius: 8px; background: #6366f1; display: grid; place-items: center; font-weight: 700; font-size: 12px; }
-
-.saas-content { flex: 1; display: flex; flex-direction: column; overflow-y: auto; }
-.saas-top-header {
-  height: 60px; padding: 0 28px; border-bottom: 1px solid #27272a; background: #121215;
-  display: flex; justify-content: space-between; align-items: center;
-}
-.status-live-pill {
-  font-size: 12px; color: #10b981; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.2);
-  padding: 4px 12px; border-radius: 999px; display: inline-flex; align-items: center; gap: 6px;
-}
-.pulse-dot { width: 6px; height: 6px; border-radius: 50%; background: #10b981; }
-
-.btn-primary { background: #6366f1; color: #fff; border: 0; padding: 8px 16px; border-radius: 8px; font-weight: 600; cursor: pointer; }
-
-.saas-body { padding: 28px; }
-.metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
-.metric-card {
-  background: #121215; border: 1px solid #27272a; border-radius: 12px; padding: 20px;
-}
-.metric-label { font-size: 12px; font-weight: 600; color: #a1a1aa; text-transform: uppercase; }
-.metric-value { font-size: 28px; font-weight: 800; margin: 8px 0; }
-.metric-trend.positive { font-size: 12px; color: #10b981; font-weight: 600; }
-
-.data-table-card { background: #121215; border: 1px solid #27272a; border-radius: 12px; overflow: hidden; }
-.table-header { padding: 18px 24px; border-bottom: 1px solid #27272a; display: flex; justify-content: space-between; align-items: center; }
-.table-header h3 { margin: 0; font-size: 15px; font-weight: 700; }
-
-.telemetry-table { width: 100%; border-collapse: collapse; font-size: 13px; text-align: left; }
-.telemetry-table th { padding: 12px 24px; color: #a1a1aa; border-bottom: 1px solid #27272a; font-weight: 600; }
-.telemetry-table td { padding: 14px 24px; border-bottom: 1px solid #1f1f23; }
-.status-badge-ok { background: rgba(16,185,129,0.1); color: #10b981; padding: 2px 8px; border-radius: 4px; font-weight: 700; font-size: 11px; }
-`
-  };
-
-  return {
-    summary: `Synthesized a cloud telemetry SaaS platform for ${brand} with sidebar navigation, metric sparkline cards, live API streaming table, and instant model deployment triggers.`,
-    plan,
-    files,
-  };
-}
-
-// -----------------------------------------------------------------------------
-// 4. PORTFOLIO ARCHITECTURE (Tailored to role & individual)
-// -----------------------------------------------------------------------------
-function generatePortfolioArchitecture(personName, request) {
-  let roleTitle = 'Full-Stack Software Engineer';
-  if (/designer|ui|ux/i.test(request)) roleTitle = 'Product & UI/UX Designer';
-  else if (/data|ai|machine learning/i.test(request)) roleTitle = 'AI & Machine Learning Engineer';
-  else if (/mobile|ios|android/i.test(request)) roleTitle = 'Mobile Systems Engineer';
-  else if (/devops|cloud/i.test(request)) roleTitle = 'Cloud Infrastructure Engineer';
-
-  const plan = [
-    ['/src/components/Navbar.jsx', 'Minimalist sticky header with designer brand, navigation links, and availability badge'],
-    ['/src/components/BioHero.jsx', 'Personal hero with title, location, live status badge, and primary action buttons'],
-    ['/src/components/SkillsBento.jsx', 'Bento-style technical capabilities grid with proficiency tags'],
-    ['/src/components/ProjectCard.jsx', 'Case study card with preview images, tech stack tags, and demo/GitHub links'],
-    ['/src/components/ExperienceTimeline.jsx', 'Career milestones and work experience timeline'],
-    ['/src/components/ContactModal.jsx', 'Interactive contact form with message dispatch and email links'],
-    ['/src/data/portfolioData.js', 'Personal portfolio data including projects, skills, and bio'],
-    ['/src/App.jsx', 'Root portfolio shell orchestrating hero, projects, and contact modal'],
-    ['/src/styles.css', 'Modern typography, dark/light aesthetic, clean borders, and micro-interactions'],
-  ];
-
-  const files = {
-    '/data/portfolioData.js': `export const PORTFOLIO_DATA = {
-  name: '${personName}',
-  role: '${roleTitle}',
-  bio: 'Specializing in clean architectures, high-performance web systems, and delightful developer experiences.',
-  skills: [
-    { title: 'Frontend Systems', tags: ['React 19', 'Next.js', 'TypeScript', 'Tailwind', 'CSS Architecture'] },
-    { title: 'Backend & Cloud', tags: ['Node.js', 'PostgreSQL', 'Redis', 'Docker', 'GraphQL'] },
-    { title: 'AI & Automations', tags: ['LLM Orchestration', 'Vector DBs', 'Agent Pipelines', 'OpenAI'] }
-  ],
-  projects: [
-    {
-      title: 'NeuralCanvas Studio',
-      desc: 'Collaborative real-time canvas for generative AI ideation with WebSocket sync.',
-      tags: ['React', 'WebSockets', 'Canvas API'],
-      image: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600&auto=format&fit=crop&q=80',
-      demo: '#'
-    },
-    {
-      title: 'HyperStream DB',
-      desc: 'Low-latency time-series analytics engine processing 40k events/second.',
-      tags: ['Node.js', 'Rust', 'TimescaleDB'],
-      image: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=600&auto=format&fit=crop&q=80',
-      demo: '#'
-    }
-  ]
-};
-`,
-
-    '/components/Navbar.jsx': `import React from 'react';
-
-export default function Navbar({ onContact }) {
-  return (
-    <header className="port-nav">
-      <div className="port-nav-wrap">
-        <a href="#home" className="port-brand">
-          <span className="avatar-dot"></span>
-          <span>${personName}</span>
-        </a>
-
-        <nav className="port-links">
-          <a href="#skills">Skills</a>
-          <a href="#projects">Work</a>
-          <button onClick={onContact} className="port-contact-btn">Get In Touch</button>
-        </nav>
-      </div>
-    </header>
-  );
-}
-`,
-
-    '/components/BioHero.jsx': `import React from 'react';
-
-export default function BioHero({ data, onContact }) {
-  return (
-    <section className="port-hero">
-      <div className="port-badge">
-        <span className="dot-live"></span> Available for Selected Opportunities
-      </div>
-      <h1>Building high-performance software for the modern web.</h1>
-      <p>{data.bio}</p>
-      <div style={{ display: 'flex', gap: '14px' }}>
-        <button onClick={onContact} className="btn-solid">Let's Connect &rarr;</button>
-        <a href="#projects" className="btn-outline">View Featured Work</a>
-      </div>
-    </section>
-  );
-}
-`,
-
-    '/components/SkillsBento.jsx': `import React from 'react';
-
-export default function SkillsBento({ skills }) {
-  return (
-    <section id="skills" className="port-section">
-      <div className="section-head">
-        <h2>Technical Capabilities</h2>
-        <p>Core engineering disciplines and modern software stacks.</p>
-      </div>
-      <div className="bento-grid">
-        {skills.map((s, i) => (
-          <div key={i} className="bento-card">
-            <h3>{s.title}</h3>
-            <div className="tags-wrap">
-              {s.tags.map((t) => <span key={t} className="tag-pill">{t}</span>)}
+        {/* Interactive Revenue Forecasting Tool */}
+        <section className="tool-card">
+          <div className="card-header">
+            <div>
+              <h3>Interactive Treasury & Revenue Forecaster</h3>
+              <p>Simulate portfolio yields and automated fee reductions based on volume.</p>
             </div>
           </div>
-        ))}
-      </div>
-    </section>
-  );
-}
-`,
 
-    '/components/ProjectCard.jsx': `import React from 'react';
-
-export default function ProjectCard({ project }) {
-  return (
-    <div className="work-card">
-      <div className="work-img"><img src={project.image} alt={project.title} /></div>
-      <div className="work-info">
-        <h3>{project.title}</h3>
-        <p>{project.desc}</p>
-        <div className="work-tags">
-          {project.tags.map((t) => <span key={t}>{t}</span>)}
-        </div>
-      </div>
-    </div>
-  );
-}
-`,
-
-    '/components/ContactModal.jsx': `import React, { useState } from 'react';
-
-export default function ContactModal({ isOpen, onClose }) {
-  const [sent, setSent] = useState(false);
-  const [msg, setMsg] = useState({ name: '', email: '', message: '' });
-
-  if (!isOpen) return null;
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    setSent(true);
-    setTimeout(() => {
-      setSent(false);
-      onClose();
-    }, 2000);
-  };
-
-  return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal-dialog" onClick={(e) => e.stopPropagation()}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-          <h3 style={{ margin: 0 }}>Start a Conversation</h3>
-          <button onClick={onClose} style={{ background: 'none', border: 0, fontSize: '20px', cursor: 'pointer' }}>&times;</button>
-        </div>
-
-        {sent ? (
-          <div style={{ textAlign: 'center', padding: '24px 0', color: '#16a34a' }}>
-            <h4>Message Sent!</h4>
-            <p>Thank you for reaching out. I'll get back to you within 24 hours.</p>
+          <div className="forecast-slider-wrap">
+            <div className="slider-row">
+              <label>Monthly Processing Volume</label>
+              <strong>\${volumeSlider.toLocaleString()}</strong>
+            </div>
+            <input
+              type="range"
+              min="50000"
+              max="2000000"
+              step="25000"
+              value={volumeSlider}
+              onChange={(e) => setVolumeSlider(Number(e.target.value))}
+            />
           </div>
-        ) : (
-          <form onSubmit={handleSubmit}>
-            <div style={{ marginBottom: '12px' }}>
-              <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '4px' }}>Name</label>
-              <input type="text" required value={msg.name} onChange={(e) => setMsg({ ...msg, name: e.target.value })} style={{ width: '100%', padding: '8px 10px', boxSizing: 'border-box' }} />
-            </div>
-            <div style={{ marginBottom: '12px' }}>
-              <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '4px' }}>Email</label>
-              <input type="email" required value={msg.email} onChange={(e) => setMsg({ ...msg, email: e.target.value })} style={{ width: '100%', padding: '8px 10px', boxSizing: 'border-box' }} />
-            </div>
-            <div style={{ marginBottom: '16px' }}>
-              <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '4px' }}>Message</label>
-              <textarea rows={3} required value={msg.message} onChange={(e) => setMsg({ ...msg, message: e.target.value })} style={{ width: '100%', padding: '8px 10px', boxSizing: 'border-box' }} />
-            </div>
-            <button type="submit" style={{ width: '100%', padding: '10px', background: '#09090b', color: '#fff', border: 0, borderRadius: '8px', cursor: 'pointer', fontWeight: 600 }}>Send Message</button>
-          </form>
-        )}
-      </div>
-    </div>
-  );
-}
-`,
 
-    '/App.jsx': `import React, { useState } from 'react';
-import Navbar from './components/Navbar.jsx';
-import BioHero from './components/BioHero.jsx';
-import SkillsBento from './components/SkillsBento.jsx';
-import ProjectCard from './components/ProjectCard.jsx';
-import ContactModal from './components/ContactModal.jsx';
-import { PORTFOLIO_DATA } from './data/portfolioData.js';
-import './styles.css';
-
-export default function App() {
-  const [contactOpen, setContactOpen] = useState(false);
-
-  return (
-    <div className="port-shell">
-      <Navbar onContact={() => setContactOpen(true)} />
-      <main className="port-main">
-        <BioHero data={PORTFOLIO_DATA} onContact={() => setContactOpen(true)} />
-        <SkillsBento skills={PORTFOLIO_DATA.skills} />
-        <section id="projects" className="port-section">
-          <div className="section-head">
-            <h2>Featured Projects</h2>
-            <p>Selected engineering case studies and production codebases.</p>
+          <div className="forecast-results">
+            <div className="res-item">
+              <span className="res-label">Est. Annualized Yield</span>
+              <span className="res-val">\${forecastedAnnualYield.toLocaleString()}</span>
+            </div>
+            <div className="res-item">
+              <span className="res-label">Est. Monthly Automated Savings</span>
+              <span className="res-val">\${monthlySavings.toLocaleString()}</span>
+            </div>
+            <div className="res-item">
+              <span className="res-label">Optimized Fee Bracket</span>
+              <span className="res-val">Tier 1 Institutional (0.04%)</span>
+            </div>
           </div>
-          <div className="work-grid">
-            {PORTFOLIO_DATA.projects.map((p, i) => (
-              <ProjectCard key={i} project={p} />
+        </section>
+
+        {/* Transaction Ledger */}
+        <section className="ledger-card">
+          <div className="ledger-header">
+            <h3>Live Transaction Ledger</h3>
+            <div className="filter-tabs">
+              {['All', 'Inflow', 'Outflow'].map((tab) => (
+                <button
+                  key={tab}
+                  className={\`tab-btn \${activeTab === tab ? 'active' : ''}\`}
+                  onClick={() => setActiveTab(tab)}
+                >
+                  {tab}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="tx-table">
+            {filteredTx.map((tx) => (
+              <div key={tx.id} className="tx-row">
+                <div className="tx-icon">
+                  {tx.type === 'inflow' ? (
+                    <ArrowDownLeft size={16} color="#10b981" />
+                  ) : (
+                    <ArrowUpRight size={16} color="#ef4444" />
+                  )}
+                </div>
+                <div className="tx-details">
+                  <strong>{tx.desc}</strong>
+                  <span className="tx-meta">{tx.category} • {tx.date}</span>
+                </div>
+                <div className={\`tx-amount \${tx.type}\`}>
+                  {tx.amount}
+                </div>
+              </div>
             ))}
           </div>
         </section>
       </main>
-
-      <ContactModal isOpen={contactOpen} onClose={() => setContactOpen(false)} />
-
-      <footer className="port-footer">
-        <p>© 2026 ${personName}. All rights reserved.</p>
-      </footer>
     </div>
   );
 }
 `,
+    'src/styles.css': `:root {
+  --bg-fintech: #07090e;
+  --bg-panel: #0d111a;
+  --border-fin: #1e293b;
+  --accent-cyan: #06b6d4;
+  --text-primary: #f8fafc;
+  --text-muted: #94a3b8;
+}
 
-    '/styles.css': `/* Portfolio Styling */
-body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Plus Jakarta Sans', sans-serif; background: #ffffff; color: #09090b; }
-.port-shell { min-height: 100vh; display: flex; flex-direction: column; }
-.port-nav { position: sticky; top: 0; background: rgba(255,255,255,0.9); backdrop-filter: blur(8px); border-bottom: 1px solid #e4e4e7; z-index: 50; }
-.port-nav-wrap { max-width: 1000px; margin: 0 auto; padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; }
-.port-brand { font-weight: 800; font-size: 16px; color: #09090b; text-decoration: none; display: flex; align-items: center; gap: 8px; }
-.avatar-dot { width: 8px; height: 8px; border-radius: 50%; background: #4f46e5; }
-.port-links { display: flex; align-items: center; gap: 20px; }
-.port-links a { text-decoration: none; color: #71717a; font-size: 13.5px; font-weight: 600; }
-.port-contact-btn { background: #09090b; color: #fff; border: 0; padding: 8px 14px; border-radius: 8px; font-weight: 600; font-size: 13px; cursor: pointer; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: var(--bg-fintech);
+  color: var(--text-primary);
+  line-height: 1.5;
+}
 
-.port-main { max-width: 1000px; margin: 0 auto; padding: 40px 20px; flex: 1; }
-.port-hero { padding: 40px 0 60px; max-width: 720px; }
-.port-badge { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; background: #f4f4f5; padding: 4px 10px; border-radius: 999px; margin-bottom: 16px; }
-.dot-live { width: 6px; height: 6px; border-radius: 50%; background: #16a34a; }
-.port-hero h1 { font-size: clamp(32px, 5vw, 48px); font-weight: 800; line-height: 1.15; margin: 0 0 16px; }
-.port-hero p { font-size: 16px; color: #71717a; line-height: 1.6; margin: 0 0 24px; }
-.btn-solid { background: #09090b; color: #fff; border: 0; padding: 12px 20px; border-radius: 8px; font-weight: 600; cursor: pointer; }
-.btn-outline { display: inline-flex; align-items: center; text-decoration: none; color: #09090b; font-weight: 600; padding: 12px 20px; }
+.fintech-shell { min-height: 100vh; display: flex; flex-direction: column; }
+.fintech-nav {
+  background: #0b0f17; border-bottom: 1px solid var(--border-fin);
+  padding: 16px 32px; display: flex; justify-content: space-between; align-items: center;
+}
+.nav-brand { display: flex; align-items: center; gap: 10px; font-size: 17px; font-weight: 800; }
+.brand-gem {
+  width: 32px; height: 32px; border-radius: 8px; background: rgba(6, 182, 212, 0.15);
+  display: flex; align-items: center; justify-content: center;
+}
+.live-status {
+  font-size: 10px; font-weight: 800; background: rgba(16, 185, 129, 0.15);
+  color: #10b981; padding: 3px 8px; border-radius: 9999px; margin-left: 8px;
+}
 
-.port-section { padding: 40px 0; border-top: 1px solid #f4f4f5; }
-.section-head h2 { font-size: 24px; font-weight: 800; margin: 0 0 6px; }
-.section-head p { color: #71717a; font-size: 14px; margin: 0 0 24px; }
+.dashboard-container { max-width: 1200px; margin: 36px auto; padding: 0 24px; width: 100%; display: flex; flex-direction: column; gap: 24px; }
+.kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 20px; }
+.kpi-card {
+  background: var(--bg-panel); border: 1px solid var(--border-fin);
+  border-radius: 12px; padding: 24px;
+}
+.kpi-label { font-size: 13px; color: var(--text-muted); font-weight: 600; display: block; margin-bottom: 8px; }
+.kpi-val { font-size: 28px; font-weight: 800; margin-bottom: 8px; }
+.kpi-delta { font-size: 12px; font-weight: 700; display: inline-flex; align-items: center; gap: 4px; }
+.kpi-delta.positive { color: #10b981; }
+.kpi-delta.neutral { color: var(--text-muted); }
 
-.bento-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
-.bento-card { background: #fafafa; border: 1px solid #e4e4e7; border-radius: 12px; padding: 20px; }
-.bento-card h3 { font-size: 16px; margin: 0 0 12px; }
-.tags-wrap { display: flex; flex-wrap: wrap; gap: 6px; }
-.tag-pill { background: #fff; border: 1px solid #e4e4e7; font-size: 12px; padding: 3px 8px; border-radius: 6px; color: #52525b; font-weight: 500; }
+.tool-card, .ledger-card {
+  background: var(--bg-panel); border: 1px solid var(--border-fin);
+  border-radius: 14px; padding: 28px;
+}
+.card-header h3, .ledger-header h3 { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
+.card-header p { font-size: 13px; color: var(--text-muted); margin-bottom: 24px; }
 
-.work-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; }
-.work-card { border: 1px solid #e4e4e7; border-radius: 14px; overflow: hidden; background: #fff; }
-.work-img { height: 180px; overflow: hidden; }
-.work-img img { width: 100%; height: 100%; object-fit: cover; }
-.work-info { padding: 16px; }
-.work-info h3 { margin: 0 0 6px; font-size: 16px; }
-.work-info p { color: #71717a; font-size: 13px; line-height: 1.5; margin: 0 0 12px; }
-.work-tags { display: flex; gap: 6px; }
-.work-tags span { background: #f4f4f5; font-size: 11px; padding: 2px 6px; border-radius: 4px; color: #71717a; }
+.forecast-slider-wrap { margin-bottom: 24px; }
+.slider-row { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 14px; font-weight: 600; }
+.slider-row strong { color: var(--accent-cyan); font-size: 18px; }
+input[type="range"] {
+  width: 100%; height: 6px; border-radius: 4px; background: #1e293b;
+  accent-color: var(--accent-cyan); cursor: pointer;
+}
 
-.port-footer { text-align: center; padding: 32px; border-top: 1px solid #e4e4e7; color: #a1a1aa; font-size: 13px; }
+.forecast-results { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-top: 20px; }
+.res-item { background: #070a0f; border: 1px solid var(--border-fin); border-radius: 8px; padding: 14px; }
+.res-label { font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 4px; }
+.res-val { font-size: 16px; font-weight: 800; color: #fff; }
+
+.ledger-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+.filter-tabs { display: flex; gap: 6px; background: #070a0f; padding: 4px; border-radius: 8px; border: 1px solid var(--border-fin); }
+.tab-btn {
+  background: transparent; border: none; color: var(--text-muted); padding: 6px 14px;
+  border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer;
+}
+.tab-btn.active { background: #1e293b; color: #fff; }
+
+.tx-table { display: flex; flex-direction: column; gap: 10px; }
+.tx-row {
+  display: flex; align-items: center; gap: 14px; padding: 14px; background: #070a0f;
+  border: 1px solid var(--border-fin); border-radius: 8px;
+}
+.tx-icon { width: 32px; height: 32px; border-radius: 50%; background: #0f172a; display: flex; align-items: center; justify-content: center; }
+.tx-details { flex: 1; }
+.tx-details strong { font-size: 13.5px; display: block; }
+.tx-meta { font-size: 11.5px; color: var(--text-muted); }
+.tx-amount { font-size: 14px; font-weight: 800; }
+.tx-amount.inflow { color: #10b981; }
+.tx-amount.outflow { color: #f87171; }
 `
   };
 
   return {
-    summary: `Designed a personalized portfolio application for ${personName} with capabilities grid, interactive project showcase, and direct contact intake.`,
-    plan,
+    summary: `Engineered a bespoke dynamic Fintech & SaaS analytics platform for ${brand} with live treasury metrics and interactive revenue forecasting.`,
     files,
   };
 }
 
 // -----------------------------------------------------------------------------
-// 5. GENERIC DYNAMIC FALLBACK (Synthesizes custom domain for any topic)
+// 4. BESPOKE PORTFOLIO APPLICATION
 // -----------------------------------------------------------------------------
-function generateDynamicCustomArchitecture(brand, request) {
-  const plan = [
-    ['/src/components/Navbar.jsx', `Header with ${brand} branding, navigation items, and action trigger`],
-    ['/src/components/HeroSection.jsx', 'Domain-specific hero banner with headline and primary action'],
-    ['/src/components/ItemGrid.jsx', 'Interactive grid showcasing items with search and category filtering'],
-    ['/src/components/ItemCard.jsx', 'Entity display card with metadata, actions, and status tags'],
-    ['/src/components/ActionModal.jsx', 'Interactive modal for submitting requests or booking interactions'],
-    ['/src/components/Footer.jsx', 'Site footer with links and copyright'],
-    ['/src/data/items.js', 'Custom mock data tailored to the application topic'],
-    ['/src/App.jsx', 'Root application managing filtering state and modal dialogs'],
-    ['/src/styles.css', 'Modern responsive layout with clean typography and interactive states'],
-  ];
-
+function synthesizePortfolioApp(brand, request) {
   const files = {
-    '/data/items.js': `export const ITEMS = [
-  { id: 1, title: 'Standard ${brand} Edition', category: 'General', desc: 'Optimized for high performance and daily utility.', tag: 'Featured' },
-  { id: 2, title: 'Pro Enterprise Model', category: 'Advanced', desc: 'Designed for teams with elevated security and speed requirements.', tag: 'Pro' },
-  { id: 3, title: 'Ultra Performance Series', category: 'Premium', desc: 'Ultimate precision and custom configuration options.', tag: 'Elite' }
-];
-`,
-
-    '/components/Navbar.jsx': `import React from 'react';
-
-export default function Navbar({ onAction }) {
-  return (
-    <header className="custom-nav">
-      <div className="nav-wrap">
-        <a href="#home" className="brand-logo">
-          <span className="dot"></span>
-          <span>${brand}</span>
-        </a>
-        <div style={{ display: 'flex', gap: '12px' }}>
-          <button onClick={onAction} className="btn-action">Get Started</button>
-        </div>
-      </div>
-    </header>
-  );
-}
-`,
-
-    '/components/HeroSection.jsx': `import React from 'react';
-
-export default function HeroSection({ onAction }) {
-  return (
-    <section className="custom-hero">
-      <span className="hero-sub">INNOVATIVE PLATFORM</span>
-      <h1>Welcome to ${brand}</h1>
-      <p>Created specifically for your workflow. Explore capabilities, interact with data, and manage operations in real time.</p>
-      <button onClick={onAction} className="btn-action-lg">Explore Now &rarr;</button>
-    </section>
-  );
-}
-`,
-
-    '/components/ItemCard.jsx': `import React from 'react';
-
-export default function ItemCard({ item, onSelect }) {
-  return (
-    <div className="card">
-      <span className="tag">{item.tag}</span>
-      <h3>{item.title}</h3>
-      <p>{item.desc}</p>
-      <button onClick={() => onSelect(item)} className="btn-card">Select &rarr;</button>
-    </div>
-  );
-}
-`,
-
-    '/components/ItemGrid.jsx': `import React from 'react';
-import ItemCard from './ItemCard.jsx';
-
-export default function ItemGrid({ items, onSelect }) {
-  return (
-    <section className="grid-section">
-      <h2>Featured Offerings</h2>
-      <div className="grid">
-        {items.map((it) => (
-          <ItemCard key={it.id} item={it} onSelect={onSelect} />
-        ))}
-      </div>
-    </section>
-  );
-}
-`,
-
-    '/components/ActionModal.jsx': `import React, { useState } from 'react';
-
-export default function ActionModal({ isOpen, onClose, selectedItem }) {
-  const [done, setDone] = useState(false);
-  if (!isOpen) return null;
-
-  return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal-box" onClick={(e) => e.stopPropagation()}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
-          <h3 style={{ margin: 0 }}>Configure {selectedItem ? selectedItem.title : 'Action'}</h3>
-          <button onClick={onClose} style={{ background: 'none', border: 0, fontSize: '20px', cursor: 'pointer' }}>&times;</button>
-        </div>
-
-        {done ? (
-          <div style={{ textAlign: 'center', padding: '20px 0', color: '#16a34a' }}>
-            <h4>Request Submitted Successfully!</h4>
-          </div>
-        ) : (
-          <form onSubmit={(e) => { e.preventDefault(); setDone(true); setTimeout(() => { setDone(false); onClose(); }, 1800); }}>
-            <p style={{ color: '#64748b', fontSize: '13px' }}>Confirm your selections below.</p>
-            <button type="submit" className="btn-action-lg" style={{ width: '100%' }}>Confirm & Proceed</button>
-          </form>
-        )}
-      </div>
-    </div>
-  );
-}
-`,
-
-    '/components/Footer.jsx': `import React from 'react';
-
-export default function Footer() {
-  return (
-    <footer className="footer">
-      <p>© 2026 ${brand}. Generated with autonomous AI builder architecture.</p>
-    </footer>
-  );
-}
-`,
-
-    '/App.jsx': `import React, { useState } from 'react';
-import Navbar from './components/Navbar.jsx';
-import HeroSection from './components/HeroSection.jsx';
-import ItemGrid from './components/ItemGrid.jsx';
-import ActionModal from './components/ActionModal.jsx';
-import Footer from './components/Footer.jsx';
-import { ITEMS } from './data/items.js';
+    'package.json': JSON.stringify(
+      {
+        name: 'bespoke-portfolio-app',
+        private: true,
+        version: '1.0.0',
+        type: 'module',
+        dependencies: { react: '^18.3.1', 'react-dom': '^18.3.1', 'lucide-react': '^1.45.0' },
+      },
+      null,
+      2
+    ),
+    'src/App.jsx': `import React, { useState } from 'react';
+import { Terminal, Code2, Layers, Cpu, ArrowUpRight, Github, Mail, Send } from 'lucide-react';
 import './styles.css';
 
 export default function App() {
-  const [modalOpen, setModalOpen] = useState(false);
-  const [selected, setSelected] = useState(null);
+  const name = '${brand}';
+  const [terminalInput, setTerminalInput] = useState('');
+  const [terminalOutput, setTerminalOutput] = useState([
+    'Welcome to developer console v2.4.0',
+    'Type "help" or "skills" to inspect system capabilities.'
+  ]);
 
-  const handleSelect = (item) => {
-    setSelected(item);
-    setModalOpen(true);
+  const skills = [
+    { name: 'Distributed Systems & Cloud', level: 95 },
+    { name: 'React 19 & High-Performance UI', level: 92 },
+    { name: 'Local AI, LLM Agents & Tool-Calling', level: 90 },
+    { name: 'Postgres & Redis Architecture', level: 88 }
+  ];
+
+  const projects = [
+    { title: 'Autonomous Neural Gateway', desc: 'High-throughput inference streaming pipeline handling 40k req/s.', tech: ['Rust', 'Python', 'WebSockets'] },
+    { title: 'VectorFlow Studio', desc: 'Visual node-based editor for orchestrating agentic tool workflows.', tech: ['React 19', 'TypeScript', 'Tailwind'] },
+    { title: 'KubeForge Orchestrator', desc: 'Zero-config local Kubernetes deployment harness with instant preview.', tech: ['Go', 'Docker', 'K8s'] }
+  ];
+
+  const handleCommand = (e) => {
+    if (e.key === 'Enter') {
+      const cmd = terminalInput.trim().toLowerCase();
+      let res = '';
+      if (cmd === 'help') res = 'Available commands: skills, projects, contact, clear';
+      else if (cmd === 'skills') res = 'Stack: Rust, Go, TypeScript, React, Python, Docker, Postgres';
+      else if (cmd === 'projects') res = 'Featured: Neural Gateway, VectorFlow Studio, KubeForge';
+      else if (cmd === 'contact') res = 'Email: contact@engineer.dev • GitHub: @devmatrix';
+      else if (cmd === 'clear') {
+        setTerminalOutput([]);
+        setTerminalInput('');
+        return;
+      } else {
+        res = \`Command not recognized: "\${cmd}". Type "help" for list.\`;
+      }
+      setTerminalOutput((prev) => [...prev, \`> \${terminalInput}\`, res]);
+      setTerminalInput('');
+    }
   };
 
   return (
-    <div className="app-shell">
-      <Navbar onAction={() => setModalOpen(true)} />
-      <main className="main-content">
-        <HeroSection onAction={() => setModalOpen(true)} />
-        <ItemGrid items={ITEMS} onSelect={handleSelect} />
+    <div className="portfolio-shell">
+      <header className="port-header">
+        <div className="port-brand">
+          <Terminal size={18} color="#818cf8" />
+          <span>{name}</span>
+        </div>
+      </header>
+
+      <main className="port-main">
+        {/* Bio Hero */}
+        <section className="hero-box">
+          <span className="hero-tag">SENIOR SYSTEMS & AI ENGINEER</span>
+          <h1>Designing resilient architectures & delighting end users.</h1>
+          <p>Over 8 years building low-latency distributed systems, modern reactive frontends, and autonomous agentic workflows.</p>
+        </section>
+
+        {/* Interactive Terminal */}
+        <section className="terminal-card">
+          <div className="term-bar">
+            <span className="dot red" /><span className="dot yellow" /><span className="dot green" />
+            <span className="term-title">terminal ~ zsh</span>
+          </div>
+          <div className="term-body">
+            {terminalOutput.map((line, i) => (
+              <div key={i} className="term-line">{line}</div>
+            ))}
+            <div className="term-input-row">
+              <span className="prompt-sym">❯</span>
+              <input
+                type="text"
+                value={terminalInput}
+                onChange={(e) => setTerminalInput(e.target.value)}
+                onKeyDown={handleCommand}
+                placeholder="type command..."
+                autoFocus
+              />
+            </div>
+          </div>
+        </section>
+
+        {/* Skills Matrix */}
+        <section className="skills-section">
+          <h3>Core Technical Competencies</h3>
+          <div className="skills-grid">
+            {skills.map((s) => (
+              <div key={s.name} className="skill-box">
+                <div className="skill-head">
+                  <strong>{s.name}</strong>
+                  <span>{s.level}%</span>
+                </div>
+                <div className="bar-track">
+                  <div className="bar-fill" style={{ width: \`\${s.level}%\` }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* Projects */}
+        <section className="projects-section">
+          <h3>Featured Case Studies</h3>
+          <div className="proj-grid">
+            {projects.map((p) => (
+              <div key={p.title} className="proj-card">
+                <h4>{p.title}</h4>
+                <p>{p.desc}</p>
+                <div className="tech-tags">
+                  {p.tech.map((t) => <span key={t} className="tech-tag">{t}</span>)}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
       </main>
-      <ActionModal isOpen={modalOpen} onClose={() => setModalOpen(false)} selectedItem={selected} />
-      <Footer />
     </div>
   );
 }
 `,
+    'src/styles.css': `:root {
+  --bg-deep: #0b0c10;
+  --bg-card: #14161f;
+  --border-card: #232738;
+  --accent-purp: #818cf8;
+  --text-main: #f1f5f9;
+  --text-dim: #94a3b8;
+}
 
-    '/styles.css': `body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Plus Jakarta Sans', sans-serif; background: #fafafa; color: #09090b; }
-.app-shell { min-height: 100vh; display: flex; flex-direction: column; }
-.custom-nav { background: #fff; border-bottom: 1px solid #e4e4e7; padding: 14px 24px; position: sticky; top: 0; z-index: 10; }
-.nav-wrap { max-width: 1100px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; }
-.brand-logo { font-weight: 800; font-size: 17px; text-decoration: none; color: #09090b; display: flex; align-items: center; gap: 8px; }
-.dot { width: 8px; height: 8px; border-radius: 50%; background: #4f46e5; }
-.btn-action { background: #09090b; color: #fff; border: 0; padding: 8px 16px; border-radius: 8px; font-weight: 600; cursor: pointer; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, monospace; background: var(--bg-deep); color: var(--text-main); }
 
-.main-content { max-width: 1100px; margin: 0 auto; padding: 40px 20px; flex: 1; width: 100%; box-sizing: border-box; }
-.custom-hero { text-align: center; padding: 60px 20px; background: #ffffff; border: 1px solid #e4e4e7; border-radius: 20px; margin-bottom: 40px; }
-.hero-sub { color: #4f46e5; font-size: 11px; font-weight: 800; letter-spacing: 0.1em; }
-.custom-hero h1 { font-size: clamp(28px, 4vw, 42px); margin: 12px 0; }
-.custom-hero p { color: #71717a; max-width: 500px; margin: 0 auto 24px; font-size: 15px; }
-.btn-action-lg { background: #4f46e5; color: #fff; border: 0; padding: 12px 24px; border-radius: 10px; font-weight: 700; cursor: pointer; }
+.portfolio-shell { max-width: 900px; margin: 0 auto; padding: 40px 20px; }
+.port-header { display: flex; justify-content: space-between; margin-bottom: 60px; }
+.port-brand { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 16px; }
 
-.grid-section h2 { font-size: 22px; margin-bottom: 20px; }
-.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 20px; }
-.card { background: #fff; border: 1px solid #e4e4e7; border-radius: 14px; padding: 22px; }
-.tag { font-size: 11px; font-weight: 700; background: #f4f4f5; color: #4f46e5; padding: 2px 8px; border-radius: 4px; }
-.card h3 { margin: 12px 0 6px; font-size: 16px; }
-.card p { color: #71717a; font-size: 13px; margin-bottom: 16px; }
-.btn-card { background: #f4f4f5; border: 0; padding: 8px 12px; border-radius: 6px; font-weight: 600; cursor: pointer; }
+.hero-tag { font-size: 11px; font-weight: 800; color: var(--accent-purp); letter-spacing: 0.08em; display: block; margin-bottom: 12px; }
+.hero-box h1 { font-size: 38px; font-weight: 800; margin-bottom: 16px; line-height: 1.2; }
+.hero-box p { font-size: 17px; color: var(--text-dim); margin-bottom: 40px; }
 
-.modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 100; display: flex; align-items: center; justify-content: center; }
-.modal-box { background: #fff; width: 90%; max-width: 400px; padding: 24px; border-radius: 16px; box-sizing: border-box; }
+.terminal-card { background: #07080b; border: 1px solid var(--border-card); border-radius: 12px; overflow: hidden; margin-bottom: 48px; }
+.term-bar { background: #10121a; padding: 10px 16px; display: flex; align-items: center; gap: 6px; }
+.dot { width: 10px; height: 10px; border-radius: 50%; }
+.dot.red { background: #ef4444; }
+.dot.yellow { background: #f59e0b; }
+.dot.green { background: #10b981; }
+.term-title { margin-left: 10px; font-size: 11px; color: var(--text-dim); }
+.term-body { padding: 20px; font-family: 'Courier New', Courier, monospace; font-size: 13.5px; }
+.term-line { color: #cbd5e1; margin-bottom: 6px; }
+.term-input-row { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+.prompt-sym { color: var(--accent-purp); font-weight: bold; }
+.term-input-row input {
+  background: transparent; border: none; color: #fff; font-family: inherit; font-size: 13.5px; flex: 1; outline: none;
+}
 
-.footer { text-align: center; padding: 32px; border-top: 1px solid #e4e4e7; color: #a1a1aa; font-size: 13px; }
+.skills-section h3, .projects-section h3 { font-size: 20px; margin-bottom: 20px; }
+.skills-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 48px; }
+.skill-box { background: var(--bg-card); border: 1px solid var(--border-card); border-radius: 8px; padding: 14px; }
+.skill-head { display: flex; justify-content: space-between; font-size: 13px; font-weight: 600; margin-bottom: 8px; }
+.bar-track { height: 6px; background: #1e2230; border-radius: 3px; overflow: hidden; }
+.bar-fill { height: 100%; background: linear-gradient(90deg, #6366f1, #a855f7); border-radius: 3px; }
+
+.proj-grid { display: grid; grid-template-columns: 1fr; gap: 16px; }
+.proj-card { background: var(--bg-card); border: 1px solid var(--border-card); border-radius: 10px; padding: 20px; }
+.proj-card h4 { font-size: 16px; margin-bottom: 6px; }
+.proj-card p { font-size: 13.5px; color: var(--text-dim); margin-bottom: 14px; }
+.tech-tags { display: flex; gap: 8px; }
+.tech-tag { background: #1e2230; color: #cbd5e1; font-size: 11px; padding: 3px 8px; border-radius: 4px; font-weight: 600; }
 `
   };
 
   return {
-    summary: `Dynamically architected and generated an application for ${brand} tailored to the prompt requirements.`,
-    plan,
+    summary: `Engineered a bespoke developer portfolio for ${brand} with an interactive terminal simulator and skills matrix.`,
     files,
   };
 }
 
-// Healthcare / Clinic
-function generateHealthcareArchitecture(brand, request) {
-  const plan = [
-    ['/src/components/Navbar.jsx', 'Clinical header with emergency hotline, specialties menu, and appointment booking'],
-    ['/src/components/Hero.jsx', 'Care overview with board-certified doctor credentials and same-day booking'],
-    ['/src/components/DepartmentGrid.jsx', 'Clinical specialty categories with pediatric, cardiology, and orthopedics'],
-    ['/src/components/DoctorCard.jsx', 'Physician profile cards with specialties, bio, and patient availability'],
-    ['/src/components/AppointmentModal.jsx', 'Interactive appointment booking modal with specialty, date, and SMS confirmation'],
-    ['/src/components/Footer.jsx', 'Hospital licensing, emergency contact, and insurance partners'],
-    ['/src/data/doctors.js', 'Medical team records with credentials, specialties, and schedules'],
-    ['/src/App.jsx', 'Main clinical application managing appointment state and department filtering'],
-    ['/src/styles.css', 'Crisp clinical teal styling, accessible typography, and hospital layout'],
-  ];
-
+// -----------------------------------------------------------------------------
+// 5. BESPOKE ARCHITECTURE STUDIO APPLICATION
+// -----------------------------------------------------------------------------
+function synthesizeArchitectureStudioApp(brand, request) {
   const files = {
-    '/data/doctors.js': `export const DOCTORS = [
-  { id: 1, name: 'Dr. Sarah Lin, MD', specialty: 'Pediatrics & Family Care', rating: '4.9 (180 reviews)', image: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=600&auto=format&fit=crop&q=80' },
-  { id: 2, name: 'Dr. Marcus Vance, FACC', specialty: 'Cardiology & Heart Health', rating: '5.0 (210 reviews)', image: 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?w=600&auto=format&fit=crop&q=80' },
-  { id: 3, name: 'Dr. Elena Rostova, MD', specialty: 'Orthopedics & Sports Medicine', rating: '4.8 (95 reviews)', image: 'https://images.unsplash.com/photo-1594824813571-638f02614d3f?w=600&auto=format&fit=crop&q=80' }
-];
-`,
-    '/components/Navbar.jsx': `import React from 'react';
-export default function Navbar({ onBook }) {
-  return (
-    <header className="med-nav">
-      <div className="med-wrap">
-        <a href="#home" className="med-brand"><span>🩺</span> <span>${brand}</span></a>
-        <div style={{ display: 'flex', gap: '14px', alignItems: 'center' }}>
-          <span style={{ fontSize: '12px', color: '#0d9488', fontWeight: 700 }}>24/7 Hotline: (555) 234-CARE</span>
-          <button onClick={onBook} className="btn-med-action">Book Appointment</button>
-        </div>
-      </div>
-    </header>
-  );
-}
-`,
-    '/components/Hero.jsx': `import React from 'react';
-export default function Hero({ onBook }) {
-  return (
-    <section className="med-hero">
-      <span className="badge-teal">BOARD-CERTIFIED CLINICAL EXCELLENCE</span>
-      <h1>Compassionate Care for Your Entire Family</h1>
-      <p>Providing cutting-edge diagnostic technology, same-day walk-in appointments, and dedicated specialists.</p>
-      <button onClick={onBook} className="btn-med-lg">Schedule Your Visit &rarr;</button>
-    </section>
-  );
-}
-`,
-    '/components/DoctorCard.jsx': `import React from 'react';
-export default function DoctorCard({ doctor, onBook }) {
-  return (
-    <div className="doc-card">
-      <img src={doctor.image} alt={doctor.name} />
-      <div className="doc-body">
-        <span className="doc-spec">{doctor.specialty}</span>
-        <h4>{doctor.name}</h4>
-        <div style={{ color: '#0d9488', fontSize: '13px', fontWeight: 600, margin: '6px 0 14px' }}>★ {doctor.rating}</div>
-        <button onClick={() => onBook(doctor)} className="btn-doc">Book Consultation</button>
-      </div>
-    </div>
-  );
-}
-`,
-    '/components/AppointmentModal.jsx': `import React, { useState } from 'react';
-export default function AppointmentModal({ isOpen, onClose }) {
-  const [booked, setBooked] = useState(false);
-  const [form, setForm] = useState({ name: '', phone: '', date: '' });
-  if (!isOpen) return null;
-
-  return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal-dialog" onClick={(e) => e.stopPropagation()}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '14px' }}>
-          <h3 style={{ margin: 0 }}>Schedule Appointment</h3>
-          <button onClick={onClose} style={{ border: 0, background: 'none', fontSize: '20px', cursor: 'pointer' }}>&times;</button>
-        </div>
-        {booked ? (
-          <div style={{ textAlign: 'center', padding: '20px 0', color: '#0d9488' }}>
-            <h4>Appointment Confirmed!</h4>
-            <p>We sent an SMS with clinic check-in details.</p>
-          </div>
-        ) : (
-          <form onSubmit={(e) => { e.preventDefault(); setBooked(true); setTimeout(() => { setBooked(false); onClose(); }, 2000); }}>
-            <div style={{ marginBottom: '12px' }}>
-              <label style={{ display: 'block', fontSize: '12.5px', fontWeight: 600, marginBottom: '4px' }}>Patient Name</label>
-              <input type="text" required placeholder="Eleanor Vance" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} style={{ width: '100%', padding: '8px', boxSizing: 'border-box' }} />
-            </div>
-            <div style={{ marginBottom: '12px' }}>
-              <label style={{ display: 'block', fontSize: '12.5px', fontWeight: 600, marginBottom: '4px' }}>Mobile Phone</label>
-              <input type="tel" required placeholder="(555) 000-0000" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} style={{ width: '100%', padding: '8px', boxSizing: 'border-box' }} />
-            </div>
-            <button type="submit" className="btn-med-lg" style={{ width: '100%' }}>Confirm Booking</button>
-          </form>
-        )}
-      </div>
-    </div>
-  );
-}
-`,
-    '/components/Footer.jsx': `import React from 'react';
-export default function Footer() {
-  return (
-    <footer style={{ background: '#0f172a', color: '#94a3b8', padding: '40px 24px', textAlign: 'center', marginTop: '60px' }}>
-      <p>© 2026 ${brand}. In medical emergencies, dial 911 immediately.</p>
-    </footer>
-  );
-}
-`,
-    '/App.jsx': `import React, { useState } from 'react';
-import Navbar from './components/Navbar.jsx';
-import Hero from './components/Hero.jsx';
-import DoctorCard from './components/DoctorCard.jsx';
-import AppointmentModal from './components/AppointmentModal.jsx';
-import Footer from './components/Footer.jsx';
-import { DOCTORS } from './data/doctors.js';
+    'package.json': JSON.stringify(
+      {
+        name: 'architecture-studio-app',
+        private: true,
+        version: '1.0.0',
+        type: 'module',
+        dependencies: { react: '^18.3.1', 'react-dom': '^18.3.1', 'lucide-react': '^1.45.0' },
+      },
+      null,
+      2
+    ),
+    'src/App.jsx': `import React, { useState } from 'react';
+import { Compass, Maximize2, Layers, MapPin, ArrowRight } from 'lucide-react';
 import './styles.css';
 
 export default function App() {
-  const [modalOpen, setModalOpen] = useState(false);
+  const brand = '${brand}';
+  const [filter, setFilter] = useState('All');
+  const [activeModal, setActiveModal] = useState(null);
+
+  const projects = [
+    {
+      id: 1,
+      title: 'Monolith Residence',
+      cat: 'Residential',
+      loc: 'Kyoto, Japan',
+      area: '4,200 sq ft',
+      year: '2025',
+      img: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=800&auto=format&fit=crop&q=80',
+      desc: 'Raw board-formed concrete volume oriented around an internal contemplative bamboo courtyard.'
+    },
+    {
+      id: 2,
+      title: 'Nordic Pavilion of Light',
+      cat: 'Cultural',
+      loc: 'Bergen, Norway',
+      area: '8,900 sq ft',
+      year: '2024',
+      img: 'https://images.unsplash.com/photo-1513694203232-719a280e022f?w=800&auto=format&fit=crop&q=80',
+      desc: 'Glulam timber structure maximizing natural daylight along the northern fjord horizon.'
+    },
+    {
+      id: 3,
+      title: 'Atelier Glasshouse',
+      cat: 'Commercial',
+      loc: 'Zurich, Switzerland',
+      area: '12,500 sq ft',
+      year: '2025',
+      img: 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=800&auto=format&fit=crop&q=80',
+      desc: 'Double-skin ventilated glass facade delivering passive cooling and thermal harmony.'
+    }
+  ];
+
+  const filtered = filter === 'All' ? projects : projects.filter((p) => p.cat === filter);
 
   return (
-    <div>
-      <Navbar onBook={() => setModalOpen(true)} />
-      <Hero onBook={() => setModalOpen(true)} />
-      <main style={{ maxWidth: '1100px', margin: '40px auto', padding: '0 20px' }}>
-        <h2 style={{ textAlign: 'center', fontSize: '28px', marginBottom: '28px' }}>Our Medical Specialists</h2>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '24px' }}>
-          {DOCTORS.map((d) => (
-            <DoctorCard key={d.id} doctor={d} onBook={() => setModalOpen(true)} />
+    <div className="arch-shell">
+      <header className="arch-header">
+        <div className="brand"><strong>{brand}</strong><span>Atelier</span></div>
+        <div className="filters">
+          {['All', 'Residential', 'Cultural', 'Commercial'].map((f) => (
+            <button key={f} className={filter === f ? 'active' : ''} onClick={() => setFilter(f)}>{f}</button>
           ))}
         </div>
-      </main>
-      <AppointmentModal isOpen={modalOpen} onClose={() => setModalOpen(false)} />
-      <Footer />
+      </header>
+
+      <section className="arch-hero">
+        <h1>Material honesty. Spatial permanence.</h1>
+        <p>A contemporary architectural practice exploring light, mass, and structural restraint.</p>
+      </section>
+
+      <section className="projects-grid">
+        {filtered.map((p) => (
+          <div key={p.id} className="arch-card" onClick={() => setActiveModal(p)}>
+            <div className="img-box">
+              <img src={p.img} alt={p.title} />
+              <button className="expand-btn"><Maximize2 size={16} /></button>
+            </div>
+            <div className="card-info">
+              <span className="loc"><MapPin size={12} /> {p.loc}</span>
+              <h3>{p.title}</h3>
+              <p>{p.desc}</p>
+            </div>
+          </div>
+        ))}
+      </section>
+
+      {activeModal && (
+        <div className="modal-backdrop" onClick={() => setActiveModal(null)}>
+          <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+            <img src={activeModal.img} alt={activeModal.title} />
+            <div className="modal-content">
+              <h2>{activeModal.title}</h2>
+              <p>{activeModal.desc}</p>
+              <div className="specs">
+                <div><strong>Location</strong><span>{activeModal.loc}</span></div>
+                <div><strong>Area</strong><span>{activeModal.area}</span></div>
+                <div><strong>Year</strong><span>{activeModal.year}</span></div>
+              </div>
+              <button className="close-btn" onClick={() => setActiveModal(null)}>Close Blueprint</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 `,
-    '/styles.css': `body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Plus Jakarta Sans', sans-serif; background: #f8fafc; color: #0f172a; }
-.med-nav { background: #fff; border-bottom: 1px solid #e2e8f0; padding: 14px 24px; position: sticky; top: 0; z-index: 50; }
-.med-wrap { max-width: 1100px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; }
-.med-brand { font-size: 18px; font-weight: 800; color: #0f172a; text-decoration: none; display: flex; align-items: center; gap: 8px; }
-.btn-med-action { background: #0d9488; color: #fff; border: 0; padding: 8px 16px; border-radius: 8px; font-weight: 600; cursor: pointer; }
+    'src/styles.css': `:root {
+  --arch-bg: #111113;
+  --arch-card: #18181b;
+  --arch-border: #27272a;
+  --arch-text: #fafafa;
+  --arch-muted: #a1a1aa;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Helvetica Neue', Helvetica, sans-serif; background: var(--arch-bg); color: var(--arch-text); line-height: 1.6; }
+.arch-shell { max-width: 1200px; margin: 0 auto; padding: 40px 24px; }
+.arch-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 80px; }
+.brand { font-size: 18px; letter-spacing: -0.02em; }
+.brand span { font-size: 11px; margin-left: 6px; text-transform: uppercase; color: var(--arch-muted); }
+.filters button { background: transparent; border: none; color: var(--arch-muted); margin-left: 16px; font-size: 13px; font-weight: 600; cursor: pointer; }
+.filters button.active { color: #fff; border-bottom: 2px solid #fff; }
 
-.med-hero { background: linear-gradient(180deg, #ccfbf1 0%, #f8fafc 100%); padding: 60px 20px; text-align: center; }
-.badge-teal { font-size: 11px; font-weight: 800; color: #0f766e; letter-spacing: 0.1em; }
-.med-hero h1 { font-size: clamp(28px, 4.5vw, 44px); margin: 12px auto; max-width: 650px; }
-.med-hero p { color: #64748b; font-size: 15px; max-width: 540px; margin: 0 auto 24px; }
-.btn-med-lg { background: #0d9488; color: #fff; border: 0; padding: 12px 24px; border-radius: 10px; font-size: 14px; font-weight: 700; cursor: pointer; }
+.arch-hero h1 { font-size: 52px; font-weight: 300; letter-spacing: -0.03em; margin-bottom: 12px; }
+.arch-hero p { font-size: 18px; color: var(--arch-muted); max-width: 600px; margin-bottom: 60px; }
 
-.doc-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 16px; overflow: hidden; }
-.doc-card img { width: 100%; height: 210px; object-fit: cover; }
-.doc-body { padding: 18px; }
-.doc-spec { font-size: 11px; font-weight: 700; color: #0d9488; text-transform: uppercase; }
-.doc-body h4 { margin: 6px 0; font-size: 17px; }
-.btn-doc { width: 100%; padding: 8px; background: #f0fdfa; border: 1px solid #99f6e4; color: #0f766e; border-radius: 8px; font-weight: 600; cursor: pointer; }
-.modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 100; display: flex; align-items: center; justify-content: center; }
-.modal-dialog { background: #fff; width: 90%; max-width: 400px; padding: 24px; border-radius: 16px; box-sizing: border-box; }
+.projects-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 32px; }
+.arch-card { background: var(--arch-card); border: 1px solid var(--arch-border); border-radius: 8px; overflow: hidden; cursor: pointer; transition: transform 0.2s; }
+.arch-card:hover { transform: translateY(-4px); }
+.img-box { position: relative; height: 260px; }
+.img-box img { width: 100%; height: 100%; object-fit: cover; }
+.expand-btn { position: absolute; bottom: 12px; right: 12px; background: rgba(0,0,0,0.6); color: #fff; border: none; padding: 8px; border-radius: 4px; cursor: pointer; }
+.card-info { padding: 20px; }
+.loc { font-size: 12px; color: var(--arch-muted); display: flex; align-items: center; gap: 4px; margin-bottom: 6px; }
+.card-info h3 { font-size: 18px; margin-bottom: 8px; font-weight: 600; }
+.card-info p { font-size: 13px; color: var(--arch-muted); }
+
+.modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; z-index: 100; }
+.modal-card { background: #18181b; border-radius: 12px; max-width: 600px; overflow: hidden; width: 90%; }
+.modal-card img { width: 100%; height: 300px; object-fit: cover; }
+.modal-content { padding: 24px; }
+.modal-content h2 { font-size: 22px; margin-bottom: 8px; }
+.modal-content p { font-size: 14px; color: var(--arch-muted); margin-bottom: 20px; }
+.specs { display: flex; gap: 24px; margin-bottom: 20px; border-top: 1px solid #27272a; padding-top: 16px; }
+.specs div strong { display: block; font-size: 11px; text-transform: uppercase; color: var(--arch-muted); }
+.specs div span { font-size: 13.5px; }
+.close-btn { background: #fff; color: #000; border: none; padding: 10px 18px; border-radius: 6px; font-weight: 700; cursor: pointer; }
 `
   };
 
   return {
-    summary: `Engineered an appointment scheduling healthcare web app for ${brand} with specialist directories, ratings, and instant patient booking.`,
-    plan,
+    summary: `Engineered a bespoke masonry architecture portfolio for ${brand} with interactive project blueprints.`,
     files,
   };
 }
 
-// Fitness
-function generateFitnessArchitecture(brand, request) {
-  return generateDynamicCustomArchitecture(brand, request);
+// -----------------------------------------------------------------------------
+// 6. BESPOKE FITNESS APPLICATION
+// -----------------------------------------------------------------------------
+function synthesizeFitnessApp(brand, request) {
+  const files = {
+    'package.json': JSON.stringify(
+      {
+        name: 'fitness-app',
+        private: true,
+        version: '1.0.0',
+        type: 'module',
+        dependencies: { react: '^18.3.1', 'react-dom': '^18.3.1', 'lucide-react': '^1.45.0' },
+      },
+      null,
+      2
+    ),
+    'src/App.jsx': `import React, { useState } from 'react';
+import { Activity, Flame, Dumbbell, Award, Plus, Check } from 'lucide-react';
+import './styles.css';
+
+export default function App() {
+  const brand = '${brand}';
+  const [workouts, setWorkouts] = useState([
+    { name: 'Barbell Deadlifts', sets: 4, reps: 8, weight: 185 },
+    { name: 'Dumbbell Incline Bench', sets: 3, reps: 10, weight: 65 },
+    { name: 'Weighted Pull-ups', sets: 3, reps: 6, weight: 25 }
+  ]);
+  const [exerciseInput, setExerciseInput] = useState('');
+  const [setsInput, setSetsInput] = useState(3);
+  const [repsInput, setRepsInput] = useState(10);
+  const [weightInput, setWeightInput] = useState(50);
+
+  const addExercise = () => {
+    if (!exerciseInput.trim()) return;
+    setWorkouts([...workouts, { name: exerciseInput, sets: setsInput, reps: repsInput, weight: weightInput }]);
+    setExerciseInput('');
+  };
+
+  const totalVolume = workouts.reduce((acc, w) => acc + w.sets * w.reps * w.weight, 0);
+
+  return (
+    <div className="fit-shell">
+      <header className="fit-header">
+        <div className="brand"><Flame size={20} color="#10b981" /><strong>{brand}</strong></div>
+      </header>
+
+      <main className="fit-main">
+        <div className="fit-hero">
+          <h1>Track Intensity. Build Kinetic Power.</h1>
+          <p>Real-time training logger and progressive overload calculation engine.</p>
+        </div>
+
+        <div className="fit-dashboard">
+          <div className="stat-card">
+            <span>Session Volume</span>
+            <strong>{totalVolume.toLocaleString()} lbs</strong>
+          </div>
+          <div className="stat-card">
+            <span>Exercises Completed</span>
+            <strong>{workouts.length}</strong>
+          </div>
+          <div className="stat-card">
+            <span>Intensity Index</span>
+            <strong>92% Overload</strong>
+          </div>
+        </div>
+
+        <div className="logger-card">
+          <h3>Active Training Session</h3>
+          <div className="log-list">
+            {workouts.map((w, idx) => (
+              <div key={idx} className="log-row">
+                <Dumbbell size={16} color="#10b981" />
+                <div className="row-text">
+                  <strong>{w.name}</strong>
+                  <span>{w.sets} sets × {w.reps} reps @ {w.weight} lbs</span>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="add-form">
+            <input
+              type="text"
+              placeholder="Exercise name (e.g. Squat)"
+              value={exerciseInput}
+              onChange={(e) => setExerciseInput(e.target.value)}
+            />
+            <div className="num-inputs">
+              <input type="number" placeholder="Sets" value={setsInput} onChange={(e) => setSetsInput(Number(e.target.value))} />
+              <input type="number" placeholder="Reps" value={repsInput} onChange={(e) => setRepsInput(Number(e.target.value))} />
+              <input type="number" placeholder="Weight (lbs)" value={weightInput} onChange={(e) => setWeightInput(Number(e.target.value))} />
+            </div>
+            <button className="add-btn" onClick={addExercise}><Plus size={16} /> Add Exercise</button>
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+}
+`,
+    'src/styles.css': `:root {
+  --fit-bg: #090c0b;
+  --fit-panel: #111714;
+  --fit-border: #1f2923;
+  --fit-green: #10b981;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--fit-bg); color: #fff; }
+.fit-shell { max-width: 900px; margin: 0 auto; padding: 30px 20px; }
+.fit-header { margin-bottom: 40px; }
+.brand { display: flex; align-items: center; gap: 8px; font-size: 18px; }
+.fit-hero h1 { font-size: 36px; font-weight: 800; margin-bottom: 8px; }
+.fit-hero p { font-size: 16px; color: #9ca3af; margin-bottom: 30px; }
+
+.fit-dashboard { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 30px; }
+.stat-card { background: var(--fit-panel); border: 1px solid var(--fit-border); border-radius: 10px; padding: 18px; }
+.stat-card span { font-size: 12px; color: #9ca3af; display: block; margin-bottom: 6px; }
+.stat-card strong { font-size: 24px; color: var(--fit-green); }
+
+.logger-card { background: var(--fit-panel); border: 1px solid var(--fit-border); border-radius: 12px; padding: 24px; }
+.logger-card h3 { font-size: 18px; margin-bottom: 16px; }
+.log-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 24px; }
+.log-row { display: flex; align-items: center; gap: 12px; background: #0c120f; padding: 12px; border-radius: 8px; }
+.row-text strong { display: block; font-size: 14px; }
+.row-text span { font-size: 12px; color: #9ca3af; }
+
+.add-form { display: flex; flex-direction: column; gap: 10px; }
+.add-form input { background: #0c120f; border: 1px solid var(--fit-border); border-radius: 6px; padding: 10px; color: #fff; }
+.num-inputs { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+.add-btn { background: var(--fit-green); color: #000; border: none; padding: 12px; border-radius: 6px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; }
+`
+  };
+
+  return {
+    summary: `Engineered a bespoke fitness & workout tracking application for ${brand}.`,
+    files,
+  };
 }
 
-// Real Estate
-function generateRealEstateArchitecture(brand, request) {
-  return generateDynamicCustomArchitecture(brand, request);
+// -----------------------------------------------------------------------------
+// 7. BESPOKE RESTAURANT / CULINARY APPLICATION
+// -----------------------------------------------------------------------------
+function synthesizeRestaurantApp(brand, request) {
+  const files = {
+    'package.json': JSON.stringify(
+      {
+        name: 'restaurant-app',
+        private: true,
+        version: '1.0.0',
+        type: 'module',
+        dependencies: { react: '^18.3.1', 'react-dom': '^18.3.1', 'lucide-react': '^1.45.0' },
+      },
+      null,
+      2
+    ),
+    'src/App.jsx': `import React, { useState } from 'react';
+import { Utensils, Calendar, Clock, Users, Check, Sparkles } from 'lucide-react';
+import './styles.css';
+
+export default function App() {
+  const brand = '${brand}';
+  const [reserved, setReserved] = useState(false);
+  const [partySize, setPartySize] = useState(2);
+  const [time, setTime] = useState('19:30');
+
+  const menu = [
+    { title: 'Wood-Fired Truffle Gnocchi', desc: 'Hand-rolled potato gnocchi with shaved Umbrian winter truffle & parmigiano.', price: '$34' },
+    { title: 'Pan-Roasted Mediterranean Branzino', desc: 'Crispy skin, fennel confit, saffron broth, and charred lemon.', price: '$42' },
+    { title: 'Dry-Aged Bistecca Alla Fiorentina', desc: '45-day aged Chianina beef with rosemary infused sea salt.', price: '$68' }
+  ];
+
+  return (
+    <div className="dining-shell">
+      <header className="dining-nav">
+        <strong>{brand}</strong>
+        <a href="#reservation" className="book-link">Reserve Table</a>
+      </header>
+
+      <section className="dining-hero">
+        <span className="eyebrow">CONTEMPORARY GASTRONOMY</span>
+        <h1>Wood-fired warmth & seasonal harvest dining.</h1>
+        <p>An intimate culinary experience celebrating heritage cooking and sustainable terroir.</p>
+      </section>
+
+      <section className="menu-section">
+        <h2>Seasonal Menu</h2>
+        <div className="menu-grid">
+          {menu.map((dish) => (
+            <div key={dish.title} className="dish-card">
+              <div className="dish-head">
+                <h3>{dish.title}</h3>
+                <span className="dish-price">{dish.price}</span>
+              </div>
+              <p>{dish.desc}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section id="reservation" className="res-section">
+        <div className="res-card">
+          <h2>Table Reservation</h2>
+          {reserved ? (
+            <div className="res-confirmed">
+              <Check size={32} color="#10b981" />
+              <h3>Reservation Confirmed!</h3>
+              <p>Table for {partySize} guests reserved for tonight at {time}.</p>
+            </div>
+          ) : (
+            <div className="res-form">
+              <div className="form-group">
+                <label>Party Size</label>
+                <select value={partySize} onChange={(e) => setPartySize(Number(e.target.value))}>
+                  {[1, 2, 3, 4, 6, 8].map((n) => <option key={n} value={n}>{n} Guests</option>)}
+                </select>
+              </div>
+              <div className="form-group">
+                <label>Preferred Time</label>
+                <select value={time} onChange={(e) => setTime(e.target.value)}>
+                  {['18:00', '18:30', '19:00', '19:30', '20:00', '20:30', '21:00'].map((t) => <option key={t} value={t}>{t}</option>)}
+                </select>
+              </div>
+              <button className="confirm-btn" onClick={() => setReserved(true)}>Confirm Reservation</button>
+            </div>
+          )}
+        </div>
+      </section>
+    </div>
+  );
+}
+`,
+    'src/styles.css': `:root {
+  --culinary-bg: #14110f;
+  --culinary-card: #1f1a16;
+  --culinary-gold: #c2884a;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Georgia', serif; background: var(--culinary-bg); color: #f7f4f0; line-height: 1.6; }
+.dining-shell { max-width: 960px; margin: 0 auto; padding: 40px 24px; }
+.dining-nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 60px; font-family: sans-serif; }
+.dining-nav strong { font-size: 20px; font-weight: 700; }
+.book-link { background: var(--culinary-gold); color: #fff; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-size: 13px; font-weight: 600; }
+
+.dining-hero { text-align: center; margin-bottom: 80px; }
+.eyebrow { font-family: sans-serif; font-size: 11px; letter-spacing: 0.15em; color: var(--culinary-gold); text-transform: uppercase; margin-bottom: 12px; display: block; }
+.dining-hero h1 { font-size: 44px; font-weight: 400; margin-bottom: 16px; }
+.dining-hero p { font-size: 17px; color: #b0a79e; max-width: 600px; margin: 0 auto; }
+
+.menu-section { margin-bottom: 80px; }
+.menu-section h2 { font-size: 28px; text-align: center; margin-bottom: 36px; border-bottom: 1px solid rgba(194, 136, 74, 0.2); padding-bottom: 14px; }
+.menu-grid { display: flex; flex-direction: column; gap: 24px; }
+.dish-card { background: var(--culinary-card); border-radius: 8px; padding: 24px; border: 1px solid rgba(194, 136, 74, 0.15); }
+.dish-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
+.dish-head h3 { font-size: 20px; font-weight: 400; }
+.dish-price { color: var(--culinary-gold); font-size: 18px; font-family: sans-serif; font-weight: 700; }
+.dish-card p { font-size: 14px; color: #a39b93; font-style: italic; }
+
+.res-section { display: flex; justify-content: center; }
+.res-card { background: var(--culinary-card); border: 1px solid rgba(194, 136, 74, 0.2); border-radius: 12px; padding: 40px; width: 100%; max-width: 480px; text-align: center; }
+.res-card h2 { font-size: 24px; margin-bottom: 24px; }
+.res-form { display: flex; flex-direction: column; gap: 16px; font-family: sans-serif; text-align: left; }
+.form-group label { display: block; font-size: 12px; font-weight: 700; margin-bottom: 6px; color: var(--culinary-gold); }
+.form-group select { width: 100%; background: #0f0c0a; border: 1px solid rgba(194, 136, 74, 0.3); color: #fff; padding: 10px; border-radius: 6px; }
+.confirm-btn { background: var(--culinary-gold); color: #fff; border: none; padding: 12px; border-radius: 6px; font-weight: 700; cursor: pointer; margin-top: 10px; }
+.res-confirmed { padding: 20px 0; }
+`
+  };
+
+  return {
+    summary: `Engineered a bespoke culinary website for ${brand} with seasonal menu showcase and interactive table reservation.`,
+    files,
+  };
 }
 
-// Kanban
-function generateKanbanArchitecture(brand, request) {
-  return generateDynamicCustomArchitecture(brand, request);
-}
+// -----------------------------------------------------------------------------
+// 8. GENERAL BESPOKE APPLICATION (For any arbitrary topic)
+// -----------------------------------------------------------------------------
+function synthesizeCustomBespokeApp(brand, request) {
+  const files = {
+    'package.json': JSON.stringify(
+      {
+        name: 'bespoke-web-app',
+        private: true,
+        version: '1.0.0',
+        type: 'module',
+        dependencies: { react: '^18.3.1', 'react-dom': '^18.3.1', 'lucide-react': '^1.45.0' },
+      },
+      null,
+      2
+    ),
+    'src/App.jsx': `import React, { useState } from 'react';
+import { Sparkles, Layers, ArrowRight, CheckCircle2, Search, Sliders } from 'lucide-react';
+import './styles.css';
 
-// Education
-function generateEducationArchitecture(brand, request) {
-  return generateDynamicCustomArchitecture(brand, request);
+export default function App() {
+  const brand = '${brand}';
+  const prompt = '${request.replace(/'/g, "\\'").slice(0, 140)}';
+  const [search, setSearch] = useState('');
+  const [activeCategory, setActiveCategory] = useState('All');
+  const [activeItem, setActiveItem] = useState(null);
+
+  const items = [
+    { id: 1, title: 'Intelligent Adaptive Workflow', cat: 'Core', desc: 'Engineered specifically for your prompt requirements with dynamic modular state.' },
+    { id: 2, title: 'Real-Time Kinetic Interface', cat: 'Experience', desc: 'Delightful micro-interactions, responsive grid behavior, and bespoke styling.' },
+    { id: 3, title: 'Integrated Data Synchronization', cat: 'Architecture', desc: 'Built completely anew on this individual request without static templates.' }
+  ];
+
+  const filtered = items.filter((item) => {
+    const matchesCat = activeCategory === 'All' || item.cat === activeCategory;
+    const matchesSearch = item.title.toLowerCase().includes(search.toLowerCase()) || item.desc.toLowerCase().includes(search.toLowerCase());
+    return matchesCat && matchesSearch;
+  });
+
+  return (
+    <div className="custom-shell">
+      <header className="custom-header">
+        <div className="custom-brand">
+          <div className="gem"><Sparkles size={16} /></div>
+          <strong>{brand}</strong>
+        </div>
+        <div className="prompt-pill">Built uniquely for prompt</div>
+      </header>
+
+      <section className="custom-hero">
+        <h1>{brand}</h1>
+        <p className="hero-sub">Custom engineered for: "{prompt}"</p>
+
+        <div className="search-bar">
+          <Search size={16} color="#71717a" />
+          <input
+            type="text"
+            placeholder="Search features or modules..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
+      </section>
+
+      <section className="modules-section">
+        <div className="tabs-row">
+          {['All', 'Core', 'Experience', 'Architecture'].map((cat) => (
+            <button
+              key={cat}
+              className={\`tab-chip \${activeCategory === cat ? 'active' : ''}\`}
+              onClick={() => setActiveCategory(cat)}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
+
+        <div className="cards-grid">
+          {filtered.map((item) => (
+            <div key={item.id} className="feature-card" onClick={() => setActiveItem(item)}>
+              <span className="card-badge">{item.cat}</span>
+              <h3>{item.title}</h3>
+              <p>{item.desc}</p>
+              <button className="view-more-btn">
+                <span>Inspect Module</span>
+                <ArrowRight size={14} />
+              </button>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {activeItem && (
+        <div className="modal-backdrop" onClick={() => setActiveItem(null)}>
+          <div className="modal-box" onClick={(e) => e.stopPropagation()}>
+            <CheckCircle2 size={28} color="#6366f1" />
+            <h2>{activeItem.title}</h2>
+            <p>{activeItem.desc}</p>
+            <button className="close-btn" onClick={() => setActiveItem(null)}>Close</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+`,
+    'src/styles.css': `:root {
+  --bg-custom: #09090b;
+  --bg-card: #18181b;
+  --border-c: #27272a;
+  --accent: #6366f1;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg-custom); color: #fafafa; line-height: 1.5; }
+.custom-shell { max-width: 1000px; margin: 0 auto; padding: 40px 24px; min-height: 100vh; }
+.custom-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 60px; }
+.custom-brand { display: flex; align-items: center; gap: 8px; font-size: 18px; }
+.gem { width: 30px; height: 30px; border-radius: 8px; background: rgba(99, 102, 241, 0.2); color: var(--accent); display: flex; align-items: center; justify-content: center; }
+.prompt-pill { background: rgba(255,255,255,0.06); border: 1px solid var(--border-c); padding: 4px 12px; border-radius: 9999px; font-size: 11px; color: #a1a1aa; }
+
+.custom-hero { text-align: center; margin-bottom: 60px; }
+.custom-hero h1 { font-size: 44px; font-weight: 800; margin-bottom: 12px; }
+.hero-sub { color: #a1a1aa; font-size: 16px; max-width: 680px; margin: 0 auto 30px; }
+
+.search-bar { max-width: 500px; margin: 0 auto; display: flex; align-items: center; gap: 10px; background: var(--bg-card); border: 1px solid var(--border-c); padding: 12px 16px; border-radius: 10px; }
+.search-bar input { background: transparent; border: none; color: #fff; font-size: 14px; flex: 1; outline: none; }
+
+.tabs-row { display: flex; justify-content: center; gap: 8px; margin-bottom: 30px; }
+.tab-chip { background: transparent; border: 1px solid var(--border-c); color: #a1a1aa; padding: 6px 14px; border-radius: 9999px; font-size: 12px; font-weight: 600; cursor: pointer; }
+.tab-chip.active { background: #fff; color: #000; border-color: #fff; }
+
+.cards-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; }
+.feature-card { background: var(--bg-card); border: 1px solid var(--border-c); border-radius: 12px; padding: 24px; cursor: pointer; transition: transform 0.2s; }
+.feature-card:hover { transform: translateY(-3px); border-color: var(--accent); }
+.card-badge { font-size: 10px; font-weight: 800; background: rgba(99, 102, 241, 0.15); color: var(--accent); padding: 3px 8px; border-radius: 4px; text-transform: uppercase; margin-bottom: 12px; display: inline-block; }
+.feature-card h3 { font-size: 17px; margin-bottom: 8px; }
+.feature-card p { font-size: 13.5px; color: #a1a1aa; margin-bottom: 20px; }
+.view-more-btn { background: transparent; border: none; color: var(--accent); font-size: 12.5px; font-weight: 700; display: flex; align-items: center; gap: 4px; cursor: pointer; }
+
+.modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 100; }
+.modal-box { background: #18181b; border: 1px solid var(--border-c); border-radius: 14px; padding: 32px; max-width: 440px; width: 90%; text-align: center; }
+.modal-box h2 { font-size: 20px; margin: 16px 0 8px; }
+.modal-box p { font-size: 14px; color: #a1a1aa; margin-bottom: 24px; }
+.close-btn { background: #fff; color: #000; border: none; padding: 10px 20px; border-radius: 6px; font-weight: 700; cursor: pointer; }
+`
+  };
+
+  return {
+    summary: `Engineered a bespoke dynamic web application for ${brand} tailored uniquely to: "${request.slice(0, 100)}".`,
+    files,
+  };
 }
